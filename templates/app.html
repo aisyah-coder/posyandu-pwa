@@ -11,6 +11,7 @@
   <link rel="manifest" href="/static/manifest.json" />
   <link rel="apple-touch-icon" href="/static/icons/icon-192.png" />
   <title>Kader Posyandu</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
   <style>
     :root {
       --primary: #1a6e4a;
@@ -857,6 +858,20 @@
     <div class="label" id="edu-label">📚 Pesan Edukasi</div>
     <div class="card">
       <div id="result-edu" class="edu-box"></div>
+    </div>
+
+    <div class="label" id="result-chart-label" style="display:none">📈 Grafik Pertumbuhan</div>
+    <div class="card" id="result-chart-1-card" style="display:none">
+      <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--neutral);font-weight:700;margin-bottom:0.5rem" id="result-chart-1-title"></div>
+      <div style="position:relative;height:180px"><canvas id="result-chart-1"></canvas></div>
+    </div>
+    <div class="card" id="result-chart-2-card" style="display:none">
+      <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--neutral);font-weight:700;margin-bottom:0.5rem" id="result-chart-2-title"></div>
+      <div style="position:relative;height:180px"><canvas id="result-chart-2"></canvas></div>
+    </div>
+    <div class="card" id="result-chart-3-card" style="display:none">
+      <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--neutral);font-weight:700;margin-bottom:0.5rem" id="result-chart-3-title"></div>
+      <div style="position:relative;height:180px"><canvas id="result-chart-3"></canvas></div>
     </div>
 
     <div class="section" style="display:flex;flex-direction:column;gap:0.65rem">
@@ -1769,7 +1784,227 @@ function showResult(type, result, formData) {
     window.open('/hasil/' + result.patient_id, '_blank');
   };
 
+  // Hide charts initially, then load
+  ['1','2','3'].forEach(n => {
+    document.getElementById('result-chart-' + n + '-card').style.display = 'none';
+  });
+  document.getElementById('result-chart-label').style.display = 'none';
+
   showScreen('result');
+
+  // Load charts async (don't block the result display)
+  if (result.patient_id && result.patient_id > 0) {
+    loadResultCharts(type, result.patient_id);
+  }
+}
+
+
+// ══════════════════════════════════════════════
+// Inline result charts
+// ══════════════════════════════════════════════
+let _resultChartInstances = [];
+
+function _destroyResultCharts() {
+  _resultChartInstances.forEach(c => c.destroy());
+  _resultChartInstances = [];
+}
+
+function _makeResultChart(canvasId, cfg) {
+  const ctx = document.getElementById(canvasId);
+  if (!ctx) return;
+  const instance = new Chart(ctx, cfg);
+  _resultChartInstances.push(instance);
+}
+
+function _showResultChartCard(n, title) {
+  document.getElementById('result-chart-' + n + '-card').style.display = 'block';
+  document.getElementById('result-chart-' + n + '-title').textContent = title;
+  document.getElementById('result-chart-label').style.display = 'block';
+}
+
+// IndexedDB helpers (patient cache for charts)
+function _openPatientDB() {
+  return new Promise((res, rej) => {
+    const req = indexedDB.open('posyandu_patients', 1);
+    req.onupgradeneeded = e => e.target.result.createObjectStore('patients', {keyPath:'id'});
+    req.onsuccess = e => res(e.target.result);
+    req.onerror   = rej;
+  });
+}
+async function _savePatientCache(data) {
+  try {
+    const db = await _openPatientDB();
+    await new Promise((res, rej) => {
+      const tx = db.transaction('patients', 'readwrite');
+      tx.objectStore('patients').put(data);
+      tx.oncomplete = res; tx.onerror = rej;
+    });
+  } catch(e) {}
+}
+async function _loadPatientCache(id) {
+  try {
+    const db = await _openPatientDB();
+    return new Promise((res) => {
+      const tx  = db.transaction('patients', 'readonly');
+      const req = tx.objectStore('patients').get(id);
+      req.onsuccess = () => res(req.result || null);
+      req.onerror   = () => res(null);
+    });
+  } catch(e) { return null; }
+}
+
+async function loadResultCharts(type, patientId) {
+  _destroyResultCharts();
+
+  // Fetch patient full history
+  let patient = null;
+  try {
+    const res = await fetch('/api/patient/' + patientId);
+    if (res.ok) {
+      patient = await res.json();
+      _savePatientCache(patient);  // cache for offline
+    }
+  } catch(e) {}
+
+  // Fallback to IndexedDB cache
+  if (!patient) patient = await _loadPatientCache(patientId);
+  if (!patient || !patient.screenings.length) return;
+
+  const screenings = patient.screenings;
+  const fmtShort = iso => new Date(iso).toLocaleDateString('id-ID', {day:'numeric', month:'short'});
+  const dates = screenings.map(s => fmtShort(s.screened_at));
+
+  const chartOpts = {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 12 } } },
+    scales: {
+      x: { ticks: { font: { size: 9 } } },
+      y: { ticks: { font: { size: 9 } } },
+    }
+  };
+
+  if (type === 'pregnant') {
+    // Chart 1: LiLA trend
+    _showResultChartCard('1', 'LiLA / MUAC (cm)');
+    _makeResultChart('result-chart-1', {
+      type: 'line',
+      data: {
+        labels: dates,
+        datasets: [
+          { label: 'LiLA (cm)', data: screenings.map(s => s.muac_cm),
+            borderColor: '#1a6e4a', backgroundColor: 'rgba(26,110,74,0.1)',
+            fill: true, tension: 0.3, pointRadius: 5, pointBackgroundColor: '#1a6e4a' },
+          { label: 'Batas KEK (23.5)', data: dates.map(() => 23.5),
+            borderColor: '#dc2626', borderDash: [5,3], borderWidth: 1.5, pointRadius: 0, fill: false },
+        ]
+      },
+      options: chartOpts
+    });
+
+    // Chart 2: BP (if measured)
+    if (screenings.some(s => s.systolic_bp)) {
+      _showResultChartCard('2', 'Tekanan Darah (mmHg)');
+      _makeResultChart('result-chart-2', {
+        type: 'line',
+        data: {
+          labels: dates,
+          datasets: [
+            { label: 'Sistolik', data: screenings.map(s => s.systolic_bp || null),
+              borderColor: '#dc2626', fill: false, tension: 0.3, pointRadius: 5, pointBackgroundColor: '#dc2626' },
+            { label: 'Diastolik', data: screenings.map(s => s.diastolic_bp || null),
+              borderColor: '#f59e0b', fill: false, tension: 0.3, pointRadius: 5, pointBackgroundColor: '#f59e0b' },
+            { label: 'Batas (140)', data: dates.map(() => 140),
+              borderColor: '#dc2626', borderDash: [5,3], borderWidth: 1, pointRadius: 0, fill: false },
+            { label: 'Batas (90)', data: dates.map(() => 90),
+              borderColor: '#f59e0b', borderDash: [5,3], borderWidth: 1, pointRadius: 0, fill: false },
+          ]
+        },
+        options: chartOpts
+      });
+    }
+
+    // Chart 3: Hb (if measured)
+    if (screenings.some(s => s.hb_gdl)) {
+      _showResultChartCard('3', 'Hemoglobin (g/dL)');
+      _makeResultChart('result-chart-3', {
+        type: 'line',
+        data: {
+          labels: dates,
+          datasets: [
+            { label: 'Hb (g/dL)', data: screenings.map(s => s.hb_gdl || null),
+              borderColor: '#7c3aed', backgroundColor: 'rgba(124,58,237,0.08)',
+              fill: true, tension: 0.3, pointRadius: 5, pointBackgroundColor: '#7c3aed' },
+            { label: 'Batas anemia (11)', data: dates.map(() => 11),
+              borderColor: '#dc2626', borderDash: [5,3], borderWidth: 1.5, pointRadius: 0, fill: false },
+          ]
+        },
+        options: chartOpts
+      });
+    }
+
+  } else {
+    // Child charts — WHO growth curves
+    const sex = screenings[screenings.length - 1]?.sex || 'M';
+    const sexLabel = sex === 'M' ? 'Laki-laki' : 'Perempuan';
+    const allAges = Array.from({length: 25}, (_, i) => i);
+
+    // Get WHO reference — localStorage cache first, then API
+    let ref = null;
+    try {
+      const cached = localStorage.getItem('who_ref_' + sex);
+      if (cached) { ref = JSON.parse(cached); }
+      else {
+        const r = await fetch('/api/who-reference?sex=' + sex);
+        if (r.ok) {
+          ref = await r.json();
+          localStorage.setItem('who_ref_' + sex, JSON.stringify(ref));
+        }
+      }
+    } catch(e) {}
+
+    const scatterOpts = {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { font: { size: 9 }, boxWidth: 10 } } },
+      scales: {
+        x: { type: 'linear', min: 0, max: 24,
+             ticks: { font: { size: 9 }, stepSize: 6, callback: v => v + ' bln' } },
+        y: { ticks: { font: { size: 9 } } },
+      }
+    };
+
+    const refLine = (label, data, color, dash=[]) => ({
+      label, data, borderColor: color, borderWidth: 1.5,
+      borderDash: dash, pointRadius: 0, fill: false, tension: 0.3, showLine: true,
+    });
+
+    // Chart 1: Weight-for-age
+    _showResultChartCard('1', 'Berat Badan — Kurva WHO (' + sexLabel + ')');
+    const wDatasets = [];
+    if (ref) {
+      wDatasets.push(refLine('Median', allAges.map((a,i) => ({x:a, y:ref.weight.median[i]})), '#16a34a'));
+      wDatasets.push(refLine('-2 SD', allAges.map((a,i) => ({x:a, y:ref.weight.minus2[i]})), '#f97316', [4,3]));
+      wDatasets.push(refLine('-3 SD', allAges.map((a,i) => ({x:a, y:ref.weight.minus3[i]})), '#dc2626', [4,3]));
+    }
+    wDatasets.push({ label: 'Berat anak', data: screenings.map(s => ({x: s.age_months, y: s.weight_kg})),
+      borderColor: '#1a6e4a', backgroundColor: '#1a6e4a',
+      showLine: true, tension: 0.3, pointRadius: 6, fill: false });
+    _makeResultChart('result-chart-1', { type: 'scatter', data: { datasets: wDatasets },
+      options: {...scatterOpts, scales: {...scatterOpts.scales, y: {...scatterOpts.scales.y, title:{display:true,text:'kg',font:{size:9}}}}} });
+
+    // Chart 2: Height-for-age
+    _showResultChartCard('2', 'Tinggi Badan — Kurva WHO (' + sexLabel + ')');
+    const hDatasets = [];
+    if (ref) {
+      hDatasets.push(refLine('Median', allAges.map((a,i) => ({x:a, y:ref.height.median[i]})), '#16a34a'));
+      hDatasets.push(refLine('-2 SD', allAges.map((a,i) => ({x:a, y:ref.height.minus2[i]})), '#f97316', [4,3]));
+      hDatasets.push(refLine('-3 SD', allAges.map((a,i) => ({x:a, y:ref.height.minus3[i]})), '#dc2626', [4,3]));
+    }
+    hDatasets.push({ label: 'Tinggi anak', data: screenings.map(s => ({x: s.age_months, y: s.height_cm})),
+      borderColor: '#2563eb', backgroundColor: '#2563eb',
+      showLine: true, tension: 0.3, pointRadius: 6, fill: false });
+    _makeResultChart('result-chart-2', { type: 'scatter', data: { datasets: hDatasets },
+      options: {...scatterOpts, scales: {...scatterOpts.scales, y: {...scatterOpts.scales.y, title:{display:true,text:'cm',font:{size:9}}}}} });
+  }
 }
 
 
