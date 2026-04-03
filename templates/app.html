@@ -878,6 +878,165 @@
 
 <script>
 // ══════════════════════════════════════════════
+// Offline Screening Logic (ported from screening.py)
+// ══════════════════════════════════════════════
+
+const WAZ_BOYS = {0:[-0.3521,3.3464,0.14602],1:[-0.3521,4.4709,0.13395],2:[-0.3521,5.5675,0.12385],3:[-0.3521,6.3762,0.11727],4:[-0.3521,7.0023,0.11316],5:[-0.3521,7.5105,0.10953],6:[-0.3521,7.9340,0.10628],7:[-0.3521,8.2970,0.10368],8:[-0.3521,8.6151,0.10138],9:[-0.3521,8.9014,0.09945],10:[-0.3521,9.1649,0.09785],11:[-0.3521,9.4122,0.09649],12:[-0.3521,9.6479,0.09533],13:[-0.3521,9.8749,0.09434],14:[-0.3521,10.0953,0.09348],15:[-0.3521,10.3108,0.09275],16:[-0.3521,10.5228,0.09214],17:[-0.3521,10.7319,0.09165],18:[-0.3521,10.9385,0.09124],19:[-0.3521,11.1430,0.09090],20:[-0.3521,11.3462,0.09063],21:[-0.3521,11.5486,0.09042],22:[-0.3521,11.7504,0.09026],23:[-0.3521,11.9514,0.09014],24:[-0.3521,12.1515,0.09005]};
+const WAZ_GIRLS = {0:[-0.3833,3.2322,0.14171],1:[-0.3833,4.1873,0.13724],2:[-0.3833,5.1282,0.13000],3:[-0.3833,5.8458,0.12619],4:[-0.3833,6.4232,0.12402],5:[-0.3833,6.8745,0.12274],6:[-0.3833,7.2676,0.12204],7:[-0.3833,7.6422,0.12178],8:[-0.3833,8.0048,0.12181],9:[-0.3833,8.3577,0.12202],10:[-0.3833,8.7017,0.12232],11:[-0.3833,9.0370,0.12264],12:[-0.3833,9.3636,0.12294],13:[-0.3833,9.6816,0.12321],14:[-0.3833,9.9919,0.12342],15:[-0.3833,10.2948,0.12358],16:[-0.3833,10.5908,0.12367],17:[-0.3833,10.8802,0.12369],18:[-0.3833,11.1632,0.12366],19:[-0.3833,11.4395,0.12357],20:[-0.3833,11.7088,0.12344],21:[-0.3833,11.9711,0.12328],22:[-0.3833,12.2264,0.12308],23:[-0.3833,12.4746,0.12286],24:[-0.3833,12.7162,0.12261]};
+const HAZ_BOYS = {0:[1,49.8842,0.03795],1:[1,54.7244,0.03557],2:[1,58.4249,0.03424],3:[1,61.4292,0.03328],4:[1,63.8860,0.03257],5:[1,65.9026,0.03204],6:[1,67.6236,0.03165],7:[1,69.1645,0.03139],8:[1,70.5994,0.03124],9:[1,71.9687,0.03117],10:[1,73.2812,0.03117],11:[1,74.5388,0.03122],12:[1,75.7488,0.03131],13:[1,76.9186,0.03143],14:[1,78.0497,0.03157],15:[1,79.1458,0.03172],16:[1,80.2113,0.03189],17:[1,81.2487,0.03206],18:[1,82.2587,0.03223],19:[1,83.2418,0.03240],20:[1,84.1996,0.03257],21:[1,85.1348,0.03273],22:[1,86.0477,0.03289],23:[1,86.9401,0.03305],24:[1,87.8161,0.03320]};
+const HAZ_GIRLS = {0:[1,49.1477,0.03790],1:[1,53.6872,0.03625],2:[1,57.0673,0.03490],3:[1,59.8029,0.03408],4:[1,62.0899,0.03347],5:[1,64.0301,0.03296],6:[1,65.7311,0.03257],7:[1,67.2873,0.03226],8:[1,68.7498,0.03204],9:[1,70.1435,0.03188],10:[1,71.4818,0.03178],11:[1,72.7710,0.03172],12:[1,74.0150,0.03168],13:[1,75.2176,0.03166],14:[1,76.3817,0.03165],15:[1,77.5099,0.03165],16:[1,78.6055,0.03165],17:[1,79.6712,0.03165],18:[1,80.7079,0.03165],19:[1,81.7182,0.03165],20:[1,82.7036,0.03166],21:[1,83.6654,0.03166],22:[1,84.6046,0.03166],23:[1,85.5228,0.03167],24:[1,86.4212,0.03167]};
+
+function _lmsZ(val, L, M, S) {
+  if (L === 0) return Math.log(val / M) / S;
+  return (Math.pow(val / M, L) - 1) / (L * S);
+}
+function _clamp(z) { return Math.max(-6, Math.min(6, z)); }
+
+function sc_muac(muac) {
+  if (muac >= 23.5) return {status:'normal',   label:'Gizi normal (LiLA cukup)',          needs_referral:false};
+  if (muac >= 21.0) return {status:'kek',      label:'KEK (Kekurangan Energi Kronis)',     needs_referral:false};
+  return              {status:'kek_berat', label:'KEK Berat — RUJUK ke Puskesmas',     needs_referral:true};
+}
+
+function sc_anemia(hb, symptoms) {
+  if (hb != null) {
+    if (hb >= 11) return {status:'normal',   label:'Tidak anemia',          needs_referral:false};
+    if (hb >= 7)  return {status:'moderate', label:'Anemia sedang',         needs_referral:false};
+    return              {status:'severe',   label:'Anemia berat — RUJUK',  needs_referral:true};
+  }
+  if (symptoms === true) return {status:'moderate', label:'Kemungkinan anemia (ada gejala)', needs_referral:false};
+  return {status:'normal', label:'Tidak ada tanda anemia', needs_referral:false};
+}
+
+function sc_bp(sys, dia) {
+  if (sys >= 140 || dia >= 90)
+    return {status:'hypertension', label:`Hipertensi (${sys}/${dia} mmHg) — RUJUK`, needs_referral:true};
+  return {status:'normal', label:`Tekanan darah normal (${sys}/${dia} mmHg)`, needs_referral:false};
+}
+
+function sc_classify_pregnant(muac_r, an_r, bp_r) {
+  let ref = muac_r.needs_referral || an_r.needs_referral || (bp_r && bp_r.needs_referral);
+  let overall = ref ? 'referred'
+    : (muac_r.status === 'kek' || an_r.status === 'moderate' || (bp_r && bp_r.status !== 'normal'))
+      ? 'at_risk' : 'normal';
+  return {overall_status:overall, needs_referral:ref, muac_status:muac_r.status,
+          anemia_status:an_r.status, bp_status: bp_r ? bp_r.status : 'skipped'};
+}
+
+function sc_waz(age, sex, weight) {
+  const t = sex === 'M' ? WAZ_BOYS : WAZ_GIRLS;
+  if (!t[age]) return null;
+  const [L,M,S] = t[age];
+  return Math.round(_clamp(_lmsZ(weight,L,M,S)) * 100) / 100;
+}
+function sc_haz(age, sex, height) {
+  const t = sex === 'M' ? HAZ_BOYS : HAZ_GIRLS;
+  if (!t[age]) return null;
+  const [L,M,S] = t[age];
+  return Math.round(_clamp(_lmsZ(height,L,M,S)) * 100) / 100;
+}
+function sc_classify_waz(waz) {
+  if (waz >= -2) return {status:'normal',               label:'Berat badan normal',                 needs_referral:false, z_score:waz};
+  if (waz >= -3) return {status:'underweight',          label:'Berat badan kurang (MAM)',            needs_referral:false, z_score:waz};
+  return               {status:'severely_underweight', label:'Berat badan sangat kurang — RUJUK',   needs_referral:true,  z_score:waz};
+}
+function sc_classify_haz(haz) {
+  if (haz >= -2) return {status:'normal',           label:'Tinggi badan normal',             needs_referral:false, z_score:haz};
+  if (haz >= -3) return {status:'stunted',          label:'Stunting (pendek)',               needs_referral:false, z_score:haz};
+  return               {status:'severely_stunted', label:'Stunting berat — RUJUK',          needs_referral:true,  z_score:haz};
+}
+function sc_classify_child(waz_r, haz_r) {
+  const ref = waz_r.needs_referral || haz_r.needs_referral;
+  const overall = ref ? 'referred'
+    : (waz_r.status === 'underweight' || haz_r.status === 'stunted') ? 'at_risk' : 'normal';
+  return {overall_status:overall, needs_referral:ref,
+          weight_status:waz_r.status, height_status:haz_r.status};
+}
+
+// Fallback education messages (used when offline)
+const FALLBACK_EDU = {
+  pregnant: {
+    normal:   '📚 Anjuran untuk Ibu:\n• Makan sesuai Isi Piringku: nasi, protein hewani (telur/ikan/ayam), sayur, buah\n• Minum TTD (Tablet Tambah Darah) setiap hari\n\nSemangat ya Bu, ibu dan bayi sehat! 💪',
+    at_risk:  '📚 Anjuran untuk Ibu:\n• Makan LEBIH BANYAK — terutama protein hewani: telur, ikan, ayam, daging setiap hari\n• Minum TTD setiap hari dan periksa ke Puskesmas minggu depan\n\nIbu pasti bisa! 🌟',
+    referred: '📚 Anjuran untuk Ibu:\n• Tetap makan dan minum yang cukup, minum TTD hari ini\n• Segera ke Puskesmas hari ini — minta keluarga menemani\n\nIni penting, jangan ditunda ya Bu. 🙏',
+  },
+  cu2: {
+    normal:   '📚 Anjuran untuk Ibu:\n• Teruskan ASI Eksklusif (< 6 bulan) atau MP-ASI kaya protein hewani 3–5x sehari (≥ 6 bulan)\n• Rutin timbang di Posyandu setiap bulan\n\nHebat ya Bu, anak tumbuh sehat! 🌱',
+    at_risk:  '📚 Anjuran untuk Ibu:\n• Berikan makan LEBIH SERING — minimal 5x sehari dengan protein hewani (telur/ikan/ayam)\n• Kembali timbang di Posyandu 4 minggu lagi\n\nSemangat Bu! 💚',
+    referred: '📚 Anjuran untuk Ibu:\n• Tetap berikan ASI atau makanan sesering mungkin\n• Segera bawa anak ke Puskesmas hari ini\n\nIbu sudah melakukan langkah yang tepat. 🙏',
+  }
+};
+
+// ══════════════════════════════════════════════
+// Offline Queue (IndexedDB)
+// ══════════════════════════════════════════════
+
+function openDB() {
+  return new Promise((res, rej) => {
+    const req = indexedDB.open('posyandu_queue', 1);
+    req.onupgradeneeded = e => e.target.result.createObjectStore('queue', {keyPath:'id', autoIncrement:true});
+    req.onsuccess = e => res(e.target.result);
+    req.onerror   = e => rej(e);
+  });
+}
+
+async function enqueue(type, payload) {
+  const db = await openDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction('queue', 'readwrite');
+    tx.objectStore('queue').add({type, payload, ts: Date.now()});
+    tx.oncomplete = res;
+    tx.onerror    = rej;
+  });
+}
+
+async function syncQueue() {
+  if (!navigator.onLine) return;
+  let db;
+  try { db = await openDB(); } catch(e) { return; }
+  const items = await new Promise((res, rej) => {
+    const tx  = db.transaction('queue', 'readonly');
+    const req = tx.objectStore('queue').getAll();
+    req.onsuccess = () => res(req.result);
+    req.onerror   = rej;
+  });
+  if (!items.length) return;
+
+  let synced = 0;
+  for (const item of items) {
+    try {
+      const r = await fetch('/api/screen/' + item.type, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(item.payload)
+      });
+      if (r.ok) {
+        const tx = db.transaction('queue', 'readwrite');
+        tx.objectStore('queue').delete(item.id);
+        synced++;
+      }
+    } catch(e) { /* still offline, try next time */ }
+  }
+  if (synced) {
+    showToast(`✅ ${synced} skrining offline berhasil disinkronkan`);
+    // Refresh patient list
+    fetch('/api/kader/' + kader.id + '/patients').then(r=>r.json()).then(d=>{ allPatients=d; loadRecentPatients(); }).catch(()=>{});
+  }
+}
+
+async function getQueueCount() {
+  try {
+    const db = await openDB();
+    return new Promise(res => {
+      const tx  = db.transaction('queue', 'readonly');
+      const req = tx.objectStore('queue').count();
+      req.onsuccess = () => res(req.result);
+      req.onerror   = () => res(0);
+    });
+  } catch(e) { return 0; }
+}
+
+// ══════════════════════════════════════════════
 // State
 // ══════════════════════════════════════════════
 let kader = JSON.parse(localStorage.getItem('kader') || 'null');
@@ -910,7 +1069,10 @@ window.addEventListener('load', () => {
     navigator.serviceWorker.register('/static/sw.js').catch(() => {});
   }
 
-  window.addEventListener('online',  () => { document.getElementById('offline-bar').classList.remove('show'); });
+  window.addEventListener('online',  () => {
+    document.getElementById('offline-bar').classList.remove('show');
+    syncQueue();
+  });
   window.addEventListener('offline', () => { document.getElementById('offline-bar').classList.add('show'); });
   if (!navigator.onLine) document.getElementById('offline-bar').classList.add('show');
 
@@ -918,6 +1080,7 @@ window.addEventListener('load', () => {
     showScreen('home');
     renderHomeHeader();
     loadRecentPatients();
+    syncQueue();
   } else {
     showScreen('login');
   }
@@ -1326,6 +1489,36 @@ async function submitPregnant() {
   };
 
   showLoading('Memproses skrining...');
+
+  if (!navigator.onLine) {
+    // ── Offline: calculate locally ──────────────────────
+    const muac_r = sc_muac(d.muac_cm);
+    const an_r   = sc_anemia(hb_gdl, anemia_symptoms);
+    const bp_r   = bp_skipped ? null : sc_bp(systolic, diastolic);
+    const cls    = sc_classify_pregnant(muac_r, an_r, bp_r);
+    const edu    = FALLBACK_EDU.pregnant[cls.overall_status];
+
+    await enqueue('pregnant', payload);
+    hideLoading();
+    showToast('📴 Tersimpan offline — akan dikirim saat ada sinyal');
+
+    const result = {
+      patient_id: pregState.patientId || -1,
+      patient_name: d.patient_name,
+      overall_status: cls.overall_status,
+      needs_referral: cls.needs_referral,
+      muac_cm: d.muac_cm,
+      muac_status: muac_r.status, muac_label: muac_r.label,
+      anemia_status: an_r.status, anemia_label: an_r.label,
+      bp_status: bp_r ? bp_r.status : 'skipped',
+      bp_label:  bp_r ? bp_r.label  : 'Tidak diukur',
+      education_message: edu,
+    };
+    showResult('pregnant', result, d);
+    return;
+  }
+
+  // ── Online: submit to API ───────────────────────────
   try {
     const res = await fetch('/api/screen/pregnant', {
       method: 'POST',
@@ -1334,7 +1527,6 @@ async function submitPregnant() {
     });
     const result = await res.json();
     hideLoading();
-    // Reload patient list in bg
     fetch('/api/kader/' + kader.id + '/patients').then(r => r.json()).then(data => { allPatients = data; loadRecentPatients(); });
     showResult('pregnant', result, d);
   } catch(e) {
@@ -1464,6 +1656,40 @@ async function submitChild() {
   };
 
   showLoading('Memproses skrining...');
+
+  if (!navigator.onLine) {
+    // ── Offline: calculate locally ──────────────────────
+    const waz   = sc_waz(d.age_months, d.sex, d.weight_kg);
+    const haz   = sc_haz(d.age_months, d.sex, d.height_cm);
+    const waz_r = waz != null ? sc_classify_waz(waz) : {status:'unknown', label:'Tidak dapat dihitung', needs_referral:false, z_score:null};
+    const haz_r = haz != null ? sc_classify_haz(haz) : {status:'unknown', label:'Tidak dapat dihitung', needs_referral:false, z_score:null};
+    const cls   = sc_classify_child(waz_r, haz_r);
+    const edu   = FALLBACK_EDU.cu2[cls.overall_status];
+
+    await enqueue('child', payload);
+    hideLoading();
+    showToast('📴 Tersimpan offline — akan dikirim saat ada sinyal');
+
+    const result = {
+      patient_id: childState.patientId || -1,
+      patient_name: d.patient_name,
+      overall_status: cls.overall_status,
+      needs_referral: cls.needs_referral,
+      age_months: d.age_months,
+      sex: d.sex,
+      sex_label: d.sex === 'M' ? 'Laki-laki' : 'Perempuan',
+      weight_kg: d.weight_kg,
+      height_cm: d.height_cm,
+      waz, haz,
+      weight_status: waz_r.status, weight_label: waz_r.label,
+      height_status: haz_r.status, height_label: haz_r.label,
+      education_message: edu,
+    };
+    showResult('child', result, d);
+    return;
+  }
+
+  // ── Online: submit to API ───────────────────────────
   try {
     const res = await fetch('/api/screen/child', {
       method: 'POST',
