@@ -443,6 +443,13 @@
   </style>
 </head>
 <body>
+<script>
+window.onerror = function(msg, src, line, col, err) {
+  document.body.style.cssText = 'background:#fff;padding:20px;font-family:monospace';
+  document.body.innerHTML = '<h2 style="color:red">App Error</h2><pre>' +
+    msg + '\nLine: ' + line + '\n' + (err ? err.stack : '') + '</pre>';
+};
+</script>
 
 <!-- ═══════════════════════ LOGIN SCREEN ════════════════════════ -->
 <div id="screen-login" class="screen">
