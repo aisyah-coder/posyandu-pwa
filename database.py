@@ -38,6 +38,7 @@ class HealthWorker(Base):
     name = Column(String, nullable=False)
     village = Column(String, nullable=True)
     district = Column(String, nullable=True)
+    kabupaten = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     patients = relationship("Patient", back_populates="chw")
@@ -143,6 +144,7 @@ def init_db():
     # columns that already exist on both SQLite and PostgreSQL.
     migrations = [
         "ALTER TABLE health_workers ADD COLUMN district VARCHAR",
+        "ALTER TABLE health_workers ADD COLUMN kabupaten VARCHAR",
         "ALTER TABLE pregnant_screenings ADD COLUMN systolic_bp INTEGER",
         "ALTER TABLE pregnant_screenings ADD COLUMN diastolic_bp INTEGER",
         "ALTER TABLE pregnant_screenings ADD COLUMN bp_status VARCHAR",

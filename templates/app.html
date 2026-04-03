@@ -488,13 +488,22 @@
           <input type="text" id="inp-reg-name" placeholder="Nama kamu" />
           <div class="err">Masukkan nama lengkap</div>
         </div>
-        <div class="field" id="f-reg-village">
-          <label>Desa / Kelurahan</label>
-          <input type="text" id="inp-reg-village" placeholder="Contoh: Desa Sukamaju" />
+        <div class="field" id="f-reg-kabupaten">
+          <label>Kabupaten / Kota</label>
+          <select id="inp-reg-kabupaten" onchange="onKabupatenChange()">
+            <option value="">— Pilih Kabupaten —</option>
+          </select>
         </div>
         <div class="field" id="f-reg-district">
           <label>Kecamatan</label>
-          <input type="text" id="inp-reg-district" placeholder="Contoh: Kecamatan Ciawi" />
+          <select id="inp-reg-district" onchange="onKecamatanChange()">
+            <option value="">— Pilih Kecamatan —</option>
+          </select>
+        </div>
+        <div class="field" id="f-reg-village">
+          <label>Desa / Kelurahan</label>
+          <input type="text" id="inp-reg-village" placeholder="Nama desa atau kelurahan" list="desa-list" autocomplete="off" />
+          <datalist id="desa-list"></datalist>
         </div>
         <button class="btn btn-primary" onclick="doRegister()">Daftar &amp; Masuk</button>
       </div>
@@ -1110,12 +1119,58 @@ function showScreen(name) {
   const el = document.getElementById('screen-' + name);
   if (el) el.classList.add('active');
   window.scrollTo(0, 0);
+  if (name === 'register') initKabupatenDropdown();
 }
 
 function goBack() {
   showScreen(prevScreen);
 }
 
+
+// ══════════════════════════════════════════════
+// ══════════════════════════════════════════════
+// Location Data (Kabupaten → Kecamatan)
+// ══════════════════════════════════════════════
+const LOCATION_DATA = {
+  'Manggarai Barat':      ['Boleng','Komodo','Kuwus','Kuwus Barat','Lembor','Lembor Selatan','Macang Pacar','Mbeliling','Ndoso','Pacar','Sano Nggoang','Welak'],
+  'Manggarai Timur':      ['Borong','Elar','Kota Komba','Lamba Leda','Lamba Leda Utara','Poco Ranaka','Poco Ranaka Timur','Rana Mese','Sambi Rampas'],
+  'Rote Ndao':            ['Landu Leko','Loaholu','Lobalain','Ndao Nuse','Pantai Baru','Rote Barat','Rote Barat Daya','Rote Barat Laut','Rote Selatan','Rote Tengah','Rote Timur'],
+  'Timor Tengah Selatan': ['Amanuban Barat','Amanuban Selatan','Amanuban Tengah','Amanuban Timur','Amanatun Selatan','Amanatun Utara','Batu Putih','Boking','Fatukopa','Fatumnasi','Fautmolo','Ki\'e','Kokbaun','Kolbano','Kot\'olin','Kota Soe','Kuatnana','Kuanfatu','Kualin','Mollo Barat','Mollo Selatan','Mollo Tengah','Mollo Utara','Noebana','Noebeba','Nunkolo','Nunbena','Oenino','Polen','Santian','Tobu','Toianas'],
+  'Kabupaten Kupang':     ['Amabi Oefeto','Amabi Oefeto Timur','Amarasi','Amarasi Barat','Amarasi Selatan','Amarasi Timur','Amfoang Barat Daya','Amfoang Barat Laut','Amfoang Selatan','Amfoang Tengah','Amfoang Timur','Amfoang Utara','Fatuleu','Fatuleu Barat','Fatuleu Tengah','Kupang Barat','Kupang Tengah','Kupang Timur','Nekamese','Semau','Semau Selatan','Sulamu','Taebenu','Takari'],
+  'Lombok Utara':         ['Bayan','Gangga','Kayangan','Pemenang','Tanjung'],
+};
+
+function initKabupatenDropdown() {
+  const sel = document.getElementById('inp-reg-kabupaten');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— Pilih Kabupaten —</option>';
+  Object.keys(LOCATION_DATA).sort().forEach(kab => {
+    const opt = document.createElement('option');
+    opt.value = kab;
+    opt.textContent = kab;
+    sel.appendChild(opt);
+  });
+}
+
+function onKabupatenChange() {
+  const kab = document.getElementById('inp-reg-kabupaten').value;
+  const kecSel = document.getElementById('inp-reg-district');
+  kecSel.innerHTML = '<option value="">— Pilih Kecamatan —</option>';
+  document.getElementById('desa-list').innerHTML = '';
+  document.getElementById('inp-reg-village').value = '';
+  if (!kab || !LOCATION_DATA[kab]) return;
+  LOCATION_DATA[kab].forEach(kec => {
+    const opt = document.createElement('option');
+    opt.value = kec;
+    opt.textContent = kec;
+    kecSel.appendChild(opt);
+  });
+}
+
+function onKecamatanChange() {
+  // Desa is free text — clear it when kecamatan changes
+  document.getElementById('inp-reg-village').value = '';
+}
 
 // ══════════════════════════════════════════════
 // Auth
@@ -1157,8 +1212,9 @@ async function doAuth() {
 
 async function doRegister() {
   const name = document.getElementById('inp-reg-name').value.trim();
-  const village = document.getElementById('inp-reg-village').value.trim();
+  const kabupaten = document.getElementById('inp-reg-kabupaten').value.trim();
   const district = document.getElementById('inp-reg-district').value.trim();
+  const village = document.getElementById('inp-reg-village').value.trim();
 
   if (!name) {
     setFieldError('f-reg-name', null, true);
@@ -1171,7 +1227,7 @@ async function doRegister() {
     const res = await fetch('/api/kader/register', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ phone: window._regPhone, name, village, district })
+      body: JSON.stringify({ phone: window._regPhone, name, village, district, kabupaten })
     });
     const data = await res.json();
     kader = data;
@@ -1202,7 +1258,7 @@ function doLogout() {
 function renderHomeHeader() {
   if (!kader) return;
   document.getElementById('home-greeting').textContent = 'Halo, ' + kader.name + '!';
-  const loc = [kader.village, kader.district].filter(Boolean).join(', ');
+  const loc = [kader.village, kader.district, kader.kabupaten].filter(Boolean).join(', ');
   document.getElementById('home-loc').textContent = loc ? '📍 ' + loc : '';
 }
 

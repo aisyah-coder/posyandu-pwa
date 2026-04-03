@@ -95,6 +95,7 @@ async def kader_auth(request: Request, db: Session = Depends(get_db)):
             "name": chw.name,
             "village": chw.village,
             "district": chw.district,
+            "kabupaten": chw.kabupaten,
         }
     return {"exists": False}
 
@@ -107,24 +108,26 @@ async def kader_register(request: Request, db: Session = Depends(get_db)):
     name = body.get("name", "").strip()
     village = body.get("village", "").strip()
     district = body.get("district", "").strip()
+    kabupaten = body.get("kabupaten", "").strip()
 
     if not phone or not name:
         raise HTTPException(400, "Nomor HP dan nama diperlukan")
 
     existing = db.query(HealthWorker).filter_by(phone=phone).first()
     if existing:
-        return {"id": existing.id, "name": existing.name, "village": existing.village, "district": existing.district}
+        return {"id": existing.id, "name": existing.name, "village": existing.village, "district": existing.district, "kabupaten": existing.kabupaten}
 
     chw = HealthWorker(
         phone=phone,
         name=name.title(),
         village=village.title() or None,
         district=district.title() or None,
+        kabupaten=kabupaten or None,
     )
     db.add(chw)
     db.commit()
     db.refresh(chw)
-    return {"id": chw.id, "name": chw.name, "village": chw.village, "district": chw.district}
+    return {"id": chw.id, "name": chw.name, "village": chw.village, "district": chw.district, "kabupaten": chw.kabupaten}
 
 
 # ---------------------------------------------------------------------------
