@@ -226,18 +226,66 @@ function fmtShort(iso) {
   return new Date(iso).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
 }
 
+// ── IndexedDB cache helpers ────────────────────────────────────────────────
+function openPatientDB() {
+  return new Promise((res, rej) => {
+    const req = indexedDB.open('posyandu_patients', 1);
+    req.onupgradeneeded = e => e.target.result.createObjectStore('patients', {keyPath:'id'});
+    req.onsuccess = e => res(e.target.result);
+    req.onerror   = rej;
+  });
+}
+async function savePatientCache(data) {
+  try {
+    const db = await openPatientDB();
+    await new Promise((res, rej) => {
+      const tx = db.transaction('patients', 'readwrite');
+      tx.objectStore('patients').put(data);
+      tx.oncomplete = res; tx.onerror = rej;
+    });
+  } catch(e) {}
+}
+async function loadPatientCache(id) {
+  try {
+    const db = await openPatientDB();
+    return new Promise((res, rej) => {
+      const tx  = db.transaction('patients', 'readonly');
+      const req = tx.objectStore('patients').get(id);
+      req.onsuccess = () => res(req.result || null);
+      req.onerror   = () => res(null);
+    });
+  } catch(e) { return null; }
+}
+
 // ── Load patient data ──────────────────────────────────────────────────────
 async function load() {
   try {
     const res = await fetch(`/api/patient/${patientId}`);
     if (!res.ok) throw new Error('Not found');
     patientData = await res.json();
+    savePatientCache(patientData);   // cache for offline use
     render(patientData);
     document.getElementById('loading').style.display = 'none';
     document.getElementById('content').style.display = 'block';
   } catch(e) {
-    document.getElementById('loading').innerHTML =
-      '<div style="font-size:2rem">😕</div><div>Pasien tidak ditemukan.</div>';
+    // Try IndexedDB cache when offline
+    const cached = await loadPatientCache(patientId);
+    if (cached) {
+      patientData = cached;
+      render(patientData);
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('content').style.display = 'block';
+      // Show offline banner
+      const banner = document.createElement('div');
+      banner.style.cssText = 'background:#fef3c7;color:#92400e;font-size:0.75rem;text-align:center;padding:0.35rem';
+      banner.textContent = '📴 Menampilkan data tersimpan (mode offline)';
+      document.getElementById('content').prepend(banner);
+    } else {
+      document.getElementById('loading').innerHTML =
+        navigator.onLine
+          ? '<div style="font-size:2rem">😕</div><div>Pasien tidak ditemukan.</div>'
+          : '<div style="font-size:2rem">📴</div><div>Tidak ada koneksi.<br>Buka halaman ini saat online dulu untuk menyimpan data.</div>';
+    }
   }
 }
 
@@ -474,7 +522,15 @@ async function renderChildCharts(screenings) {
   try {
     const r = await fetch(`/api/who-reference?sex=${sex}`);
     ref = await r.json();
-  } catch(e) { console.error('WHO ref fetch failed', e); }
+    // Cache WHO reference permanently (it never changes)
+    try { localStorage.setItem('who_ref_' + sex, JSON.stringify(ref)); } catch(e) {}
+  } catch(e) {
+    // Fallback to localStorage cache
+    try {
+      const cached = localStorage.getItem('who_ref_' + sex);
+      if (cached) ref = JSON.parse(cached);
+    } catch(e2) {}
+  }
 
   const whoAges = ref ? ref.weight.ages : [];
   const allAges = Array.from({length: 25}, (_, i) => i);
