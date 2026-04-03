@@ -1792,10 +1792,8 @@ function showResult(type, result, formData) {
 
   showScreen('result');
 
-  // Load charts async (don't block the result display)
-  if (result.patient_id && result.patient_id > 0) {
-    loadResultCharts(type, result.patient_id);
-  }
+  // Load charts — always, even offline or new patient
+  loadResultCharts(type, result.patient_id, result);
 }
 
 
@@ -1853,22 +1851,66 @@ async function _loadPatientCache(id) {
   } catch(e) { return null; }
 }
 
-async function loadResultCharts(type, patientId) {
+async function loadResultCharts(type, patientId, currentResult) {
   _destroyResultCharts();
 
-  // Fetch patient full history
-  let patient = null;
-  try {
-    const res = await fetch('/api/patient/' + patientId);
-    if (res.ok) {
-      patient = await res.json();
-      _savePatientCache(patient);  // cache for offline
-    }
-  } catch(e) {}
+  // Build the "current screening" as a synthetic record from the result object
+  const now = new Date().toISOString();
+  let currentScreening = null;
+  if (type === 'pregnant') {
+    currentScreening = {
+      muac_cm: currentResult.muac_cm,
+      muac_status: currentResult.muac_status,
+      anemia_status: currentResult.anemia_status,
+      systolic_bp: currentResult.bp_status !== 'skipped' ? (currentResult.bp_status === 'hypertension' ? 145 : 120) : null,
+      diastolic_bp: currentResult.bp_status !== 'skipped' ? (currentResult.bp_status === 'hypertension' ? 95 : 80) : null,
+      hb_gdl: null,
+      overall_status: currentResult.overall_status,
+      screened_at: now,
+    };
+  } else {
+    currentScreening = {
+      age_months: currentResult.age_months,
+      sex: currentResult.sex,
+      weight_kg: currentResult.weight_kg,
+      height_cm: currentResult.height_cm,
+      waz: currentResult.waz,
+      haz: currentResult.haz,
+      overall_status: currentResult.overall_status,
+      screened_at: now,
+    };
+  }
 
-  // Fallback to IndexedDB cache
-  if (!patient) patient = await _loadPatientCache(patientId);
-  if (!patient || !patient.screenings.length) return;
+  // Try to get full patient history (online → IndexedDB → just current point)
+  let screenings = null;
+
+  if (patientId && patientId > 0) {
+    try {
+      const res = await fetch('/api/patient/' + patientId);
+      if (res.ok) {
+        const patient = await res.json();
+        _savePatientCache(patient);
+        screenings = patient.screenings;
+      }
+    } catch(e) {}
+
+    // Offline fallback: IndexedDB cache
+    if (!screenings) {
+      const cached = await _loadPatientCache(patientId);
+      if (cached) screenings = cached.screenings;
+    }
+
+    // Append current screening if it's not already in history
+    // (it won't be if we're offline and just queued it)
+    if (screenings && !navigator.onLine) {
+      screenings = [...screenings, currentScreening];
+    }
+  }
+
+  // New patient or nothing cached — just show the current point
+  if (!screenings || !screenings.length) {
+    screenings = [currentScreening];
+  }
 
   const screenings = patient.screenings;
   const fmtShort = iso => new Date(iso).toLocaleDateString('id-ID', {day:'numeric', month:'short'});
