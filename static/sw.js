@@ -1,13 +1,10 @@
-const CACHE = 'posyandu-v2';
-const SHELL = [
-  '/app',
-  '/static/manifest.json',
-  'https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js',
-];
+const CACHE = 'posyandu-v3';
+const SHELL = ['/app', '/static/manifest.json'];
 
 self.addEventListener('install', e => {
+  // Only cache local shell — never block install on external CDN
   e.waitUntil(
-    caches.open(CACHE).then(c => c.addAll(SHELL))
+    caches.open(CACHE).then(c => c.addAll(SHELL)).catch(() => {})
   );
   self.skipWaiting();
 });
