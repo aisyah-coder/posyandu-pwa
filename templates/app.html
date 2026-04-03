@@ -1932,7 +1932,6 @@ async function loadResultCharts(type, patientId, currentResult) {
     screenings = [currentScreening];
   }
 
-  const screenings = patient.screenings;
   const fmtShort = iso => new Date(iso).toLocaleDateString('id-ID', {day:'numeric', month:'short'});
   const dates = screenings.map(s => fmtShort(s.screened_at));
 
