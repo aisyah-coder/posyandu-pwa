@@ -1,0 +1,1606 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#1a6e4a" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Posyandu" />
+  <link rel="manifest" href="/static/manifest.json" />
+  <link rel="apple-touch-icon" href="/static/icons/icon-192.png" />
+  <title>Kader Posyandu</title>
+  <style>
+    :root {
+      --primary: #1a6e4a;
+      --primary-dark: #145a3c;
+      --primary-light: #e8f5ee;
+      --primary-mid: #2d9566;
+      --danger: #dc2626;
+      --warning: #d97706;
+      --warning-light: #fef3c7;
+      --success: #16a34a;
+      --success-light: #dcfce7;
+      --neutral: #6b7280;
+      --neutral-light: #f3f4f6;
+      --bg: #f0f4f8;
+      --white: #ffffff;
+      --text: #111827;
+      --text-muted: #6b7280;
+      --border: #e5e7eb;
+      --radius: 14px;
+      --radius-sm: 8px;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: var(--text);
+      overscroll-behavior: none;
+    }
+
+    /* ── Layout ──────────────────────────────────────────── */
+    .screen {
+      display: none;
+      flex-direction: column;
+      height: 100%;
+      max-width: 480px;
+      margin: 0 auto;
+      background: var(--bg);
+    }
+    .screen.active { display: flex; }
+
+    .topbar {
+      background: var(--primary);
+      color: white;
+      padding: calc(var(--safe-top) + 1rem) 1rem 1rem;
+      flex-shrink: 0;
+    }
+    .topbar-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .topbar-back {
+      background: none;
+      border: none;
+      color: white;
+      font-size: 1.3rem;
+      cursor: pointer;
+      padding: 0.1rem 0.4rem 0.1rem 0;
+      opacity: 0.85;
+    }
+    .topbar-back:hover { opacity: 1; }
+    .topbar h1 { font-size: 1.15rem; font-weight: 700; flex: 1; }
+    .topbar .subtitle { font-size: 0.8rem; opacity: 0.75; margin-top: 0.2rem; }
+
+    .scroll-body {
+      flex: 1;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: calc(var(--safe-bottom) + 1.5rem);
+    }
+
+    /* ── Typography & helpers ────────────────────────────── */
+    .section { padding: 1rem; }
+    .section + .section { padding-top: 0; }
+    .label {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      padding: 0 1rem;
+      margin-top: 1rem;
+    }
+    .label:first-child { margin-top: 0; }
+
+    /* ── Cards ───────────────────────────────────────────── */
+    .card {
+      background: var(--white);
+      border-radius: var(--radius);
+      padding: 1.1rem;
+      margin: 0 0.75rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+    }
+    .card + .card { margin-top: 0.65rem; }
+
+    /* ── Buttons ─────────────────────────────────────────── */
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 0.9rem 1rem;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    .btn:active { opacity: 0.8; transform: scale(0.98); }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:disabled { background: #a7c8b8; cursor: not-allowed; }
+    .btn-outline { background: transparent; color: var(--primary); border: 1.5px solid var(--primary); }
+    .btn-danger  { background: var(--danger); color: white; }
+    .btn-ghost   { background: transparent; color: var(--text-muted); font-weight: 400; }
+    .btn-sm { padding: 0.6rem 1rem; font-size: 0.85rem; }
+
+    /* ── Form elements ───────────────────────────────────── */
+    .field { margin-bottom: 1rem; }
+    .field label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 0.4rem;
+    }
+    .field input, .field select {
+      width: 100%;
+      padding: 0.75rem 0.9rem;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 0.95rem;
+      color: var(--text);
+      background: var(--white);
+      outline: none;
+      transition: border-color 0.15s;
+      -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--primary); }
+    .field .hint { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.3rem; }
+    .field .err  { font-size: 0.75rem; color: var(--danger); margin-top: 0.3rem; display: none; }
+    .field.has-error input, .field.has-error select { border-color: var(--danger); }
+    .field.has-error .err { display: block; }
+
+    /* Option cards (for BP, anemia) */
+    .opt-group { display: flex; flex-direction: column; gap: 0.5rem; }
+    .opt-card {
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 1rem;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .opt-card input[type=radio] { display: none; }
+    .opt-card.selected { border-color: var(--primary); background: var(--primary-light); }
+    .opt-card .opt-icon { font-size: 1.3rem; flex-shrink: 0; }
+    .opt-card .opt-label { font-size: 0.9rem; font-weight: 600; }
+    .opt-card .opt-sub   { font-size: 0.75rem; color: var(--text-muted); }
+
+    /* ── Step indicator ──────────────────────────────────── */
+    .step-indicator {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.6rem 1rem;
+      background: var(--primary-dark);
+    }
+    .step-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.3);
+      flex-shrink: 0;
+      transition: background 0.2s, transform 0.2s;
+    }
+    .step-dot.active { background: white; transform: scale(1.3); }
+    .step-dot.done   { background: rgba(255,255,255,0.6); }
+    .step-label {
+      margin-left: auto;
+      font-size: 0.72rem;
+      color: rgba(255,255,255,0.7);
+      white-space: nowrap;
+    }
+
+    /* Form step pages */
+    .step-page { display: none; }
+    .step-page.active { display: block; }
+    .step-page .step-title {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+    .step-page .step-desc {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 1.25rem;
+      line-height: 1.5;
+    }
+
+    /* ── Home screen ─────────────────────────────────────── */
+    .home-header {
+      background: var(--primary);
+      color: white;
+      padding: calc(var(--safe-top) + 1.25rem) 1rem 1.5rem;
+    }
+    .home-brand { font-size: 0.7rem; opacity: 0.6; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 0.4rem; }
+    .home-greeting { font-size: 1.4rem; font-weight: 700; }
+    .home-loc { font-size: 0.82rem; opacity: 0.75; margin-top: 0.25rem; }
+
+    .action-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.65rem;
+      padding: 1rem;
+    }
+    .action-tile {
+      background: var(--white);
+      border-radius: var(--radius);
+      padding: 1.1rem 0.9rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+      cursor: pointer;
+      transition: transform 0.12s, box-shadow 0.12s;
+      border: none;
+      text-align: left;
+    }
+    .action-tile:active { transform: scale(0.96); box-shadow: none; }
+    .action-tile .tile-icon { font-size: 1.75rem; margin-bottom: 0.5rem; }
+    .action-tile .tile-label { font-size: 0.82rem; font-weight: 700; color: var(--text); line-height: 1.3; }
+    .action-tile .tile-sub   { font-size: 0.7rem; color: var(--text-muted); margin-top: 0.15rem; }
+
+    /* ── Patient list ────────────────────────────────────── */
+    .patient-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.85rem 0;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+    }
+    .patient-row:last-child { border-bottom: none; }
+    .patient-avatar {
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.15rem;
+      flex-shrink: 0;
+    }
+    .avatar-pregnant { background: #fce7f3; }
+    .avatar-cu2      { background: #dbeafe; }
+    .patient-info { flex: 1; min-width: 0; }
+    .patient-name { font-size: 0.9rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .patient-meta { font-size: 0.72rem; color: var(--text-muted); margin-top: 0.1rem; }
+    .status-badge {
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 0.2rem 0.55rem;
+      border-radius: 20px;
+      white-space: nowrap;
+    }
+    .badge-normal   { background: var(--success-light); color: #15803d; }
+    .badge-at_risk  { background: var(--warning-light); color: #92400e; }
+    .badge-referred { background: #fee2e2; color: #991b1b; }
+    .badge-not_screened { background: var(--neutral-light); color: var(--text-muted); }
+
+    /* ── Result screen ───────────────────────────────────── */
+    .result-status-banner {
+      padding: 1.25rem 1rem;
+      text-align: center;
+    }
+    .result-status-icon { font-size: 3rem; margin-bottom: 0.5rem; }
+    .result-status-label { font-size: 1.1rem; font-weight: 700; }
+    .result-status-sub   { font-size: 0.82rem; margin-top: 0.25rem; opacity: 0.8; }
+
+    .banner-normal   { background: var(--success-light); color: #14532d; }
+    .banner-at_risk  { background: var(--warning-light); color: #78350f; }
+    .banner-referred { background: #fee2e2; color: #7f1d1d; }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem;
+    }
+    .stat-box {
+      background: var(--neutral-light);
+      border-radius: var(--radius-sm);
+      padding: 0.65rem 0.75rem;
+    }
+    .stat-lbl { font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    .stat-val { font-size: 1rem; font-weight: 700; }
+    .stat-sub { font-size: 0.72rem; color: var(--text-muted); }
+
+    .edu-box {
+      background: #f0fdf4;
+      border-left: 3px solid var(--success);
+      padding: 0.85rem 1rem;
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      font-size: 0.88rem;
+      white-space: pre-wrap;
+      line-height: 1.65;
+    }
+
+    .referral-alert {
+      background: #fef2f2;
+      border: 1px solid #fca5a5;
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 1rem;
+      display: flex;
+      gap: 0.75rem;
+      align-items: flex-start;
+    }
+    .referral-alert .r-icon { font-size: 1.3rem; flex-shrink: 0; }
+    .referral-alert .r-text { font-size: 0.85rem; color: #991b1b; line-height: 1.5; }
+    .referral-alert strong { display: block; margin-bottom: 0.2rem; }
+
+    /* ── Search ──────────────────────────────────────────── */
+    .search-bar {
+      display: flex;
+      gap: 0.5rem;
+      padding: 0.75rem 1rem;
+      background: var(--primary-dark);
+    }
+    .search-bar input {
+      flex: 1;
+      padding: 0.65rem 0.9rem;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 0.9rem;
+      outline: none;
+    }
+    .search-bar .search-btn {
+      background: white;
+      color: var(--primary);
+      border: none;
+      border-radius: var(--radius-sm);
+      padding: 0.65rem 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+
+    /* ── Login screen ────────────────────────────────────── */
+    .login-hero {
+      background: var(--primary);
+      color: white;
+      padding: calc(var(--safe-top) + 3rem) 1.5rem 3rem;
+      text-align: center;
+    }
+    .login-logo { font-size: 3.5rem; margin-bottom: 0.75rem; }
+    .login-title { font-size: 1.5rem; font-weight: 800; }
+    .login-sub   { font-size: 0.88rem; opacity: 0.75; margin-top: 0.4rem; line-height: 1.5; }
+
+    /* ── Misc ────────────────────────────────────────────── */
+    .divider { height: 1px; background: var(--border); margin: 0.75rem 0; }
+    .empty-state {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--text-muted);
+    }
+    .empty-state .empty-icon { font-size: 2.5rem; margin-bottom: 0.5rem; }
+    .empty-state p { font-size: 0.88rem; line-height: 1.5; }
+
+    .toast {
+      position: fixed;
+      bottom: calc(var(--safe-bottom) + 1.5rem);
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: #1f2937;
+      color: white;
+      padding: 0.65rem 1.25rem;
+      border-radius: 24px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      z-index: 1000;
+      transition: transform 0.3s ease;
+      max-width: 90vw;
+      text-align: center;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+
+    .spinner {
+      width: 24px; height: 24px;
+      border: 3px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loading-overlay {
+      position: fixed; inset: 0;
+      background: rgba(255,255,255,0.85);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 1rem;
+      z-index: 500;
+    }
+    .loading-overlay.show { display: flex; }
+    .loading-overlay .lo-spinner {
+      width: 40px; height: 40px;
+      border: 4px solid var(--primary-light);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    .loading-overlay p { font-size: 0.9rem; color: var(--primary); font-weight: 600; }
+
+    .offline-bar {
+      background: #fef3c7;
+      color: #92400e;
+      font-size: 0.75rem;
+      text-align: center;
+      padding: 0.35rem;
+      display: none;
+    }
+    .offline-bar.show { display: block; }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════ LOGIN SCREEN ════════════════════════ -->
+<div id="screen-login" class="screen">
+  <div class="login-hero">
+    <div class="login-logo">🏥</div>
+    <div class="login-title">Kader Posyandu</div>
+    <div class="login-sub">Aplikasi Skrining Ibu Hamil<br>&amp; Anak Bawah 2 Tahun</div>
+  </div>
+  <div class="scroll-body">
+    <div class="section" style="padding-top:1.5rem">
+      <div class="card">
+        <p style="font-size:0.9rem;color:var(--text-muted);margin-bottom:1rem;line-height:1.5">
+          Masukkan nomor HP kamu untuk masuk atau mendaftar.
+        </p>
+        <div class="field" id="f-phone">
+          <label>Nomor HP</label>
+          <input type="tel" id="inp-phone" placeholder="Contoh: 081234567890" maxlength="16" inputmode="tel" />
+          <div class="err" id="err-phone">Masukkan nomor HP yang valid</div>
+        </div>
+        <button class="btn btn-primary" onclick="doAuth()">Masuk / Daftar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════ REGISTER SCREEN ═════════════════════ -->
+<div id="screen-register" class="screen">
+  <div class="topbar">
+    <div class="topbar-row">
+      <button class="topbar-back" onclick="showScreen('login')">←</button>
+      <h1>Daftar Kader Baru</h1>
+    </div>
+  </div>
+  <div class="scroll-body">
+    <div class="section">
+      <p style="font-size:0.88rem;color:var(--text-muted);margin-bottom:1rem;line-height:1.5">
+        👋 Selamat datang! Isi data di bawah untuk mendaftar sebagai kader.
+      </p>
+      <div class="card">
+        <div class="field" id="f-reg-name">
+          <label>Nama Lengkap</label>
+          <input type="text" id="inp-reg-name" placeholder="Nama kamu" />
+          <div class="err">Masukkan nama lengkap</div>
+        </div>
+        <div class="field" id="f-reg-village">
+          <label>Desa / Kelurahan</label>
+          <input type="text" id="inp-reg-village" placeholder="Contoh: Desa Sukamaju" />
+        </div>
+        <div class="field" id="f-reg-district">
+          <label>Kecamatan</label>
+          <input type="text" id="inp-reg-district" placeholder="Contoh: Kecamatan Ciawi" />
+        </div>
+        <button class="btn btn-primary" onclick="doRegister()">Daftar &amp; Masuk</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════ HOME SCREEN ═════════════════════════ -->
+<div id="screen-home" class="screen">
+  <div class="home-header" id="home-header">
+    <div class="home-brand">🏥 Posyandu</div>
+    <div class="home-greeting" id="home-greeting">Halo, Kader!</div>
+    <div class="home-loc" id="home-loc"></div>
+  </div>
+
+  <div id="offline-bar" class="offline-bar">⚠️ Tidak ada koneksi — beberapa fitur tidak tersedia</div>
+
+  <div class="scroll-body">
+    <div class="action-grid">
+      <button class="action-tile" onclick="startPregnantForm(null)">
+        <div class="tile-icon">🤰</div>
+        <div class="tile-label">Tambah Ibu Hamil</div>
+        <div class="tile-sub">Skrining baru</div>
+      </button>
+      <button class="action-tile" onclick="startChildForm(null)">
+        <div class="tile-icon">👶</div>
+        <div class="tile-label">Tambah Anak &lt; 2 Thn</div>
+        <div class="tile-sub">Skrining baru</div>
+      </button>
+      <button class="action-tile" onclick="showScreen('update')">
+        <div class="tile-icon">🔄</div>
+        <div class="tile-label">Perbarui Pasien</div>
+        <div class="tile-sub">Cari &amp; update data</div>
+      </button>
+      <button class="action-tile" onclick="loadPatients()">
+        <div class="tile-icon">📋</div>
+        <div class="tile-label">Daftar Pasien</div>
+        <div class="tile-sub">Lihat semua pasien</div>
+      </button>
+    </div>
+
+    <div class="label">Pasien Terbaru</div>
+    <div class="card">
+      <div id="recent-patients">
+        <div class="empty-state" style="padding:1.5rem 0">
+          <div class="empty-icon">⏳</div>
+          <p>Memuat...</p>
+        </div>
+      </div>
+    </div>
+
+    <div style="padding:1rem">
+      <a href="/" style="display:block;text-align:center;color:var(--text-muted);font-size:0.8rem;text-decoration:none;">
+        📊 Lihat Dashboard Supervisor →
+      </a>
+    </div>
+
+    <div style="text-align:center;padding:0 1rem 0.5rem">
+      <button class="btn btn-ghost btn-sm" onclick="doLogout()" style="color:var(--danger);font-size:0.78rem">
+        Keluar
+      </button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════ PREGNANT FORM SCREEN ═══════════════════════ -->
+<div id="screen-pregnant" class="screen">
+  <div class="topbar">
+    <div class="topbar-row">
+      <button class="topbar-back" id="preg-back-btn" onclick="goBack()">←</button>
+      <h1>Skrining Ibu Hamil</h1>
+    </div>
+    <div class="step-indicator" id="preg-step-dots"></div>
+  </div>
+  <div class="scroll-body">
+    <div class="section">
+
+      <!-- Step 1: Name -->
+      <div class="step-page active" id="preg-step-1">
+        <div class="step-title">👤 Nama Pasien</div>
+        <div class="step-desc">Siapa nama lengkap ibu hamil ini?</div>
+        <div class="field" id="f-preg-name">
+          <label>Nama Lengkap Ibu</label>
+          <input type="text" id="inp-preg-name" placeholder="Contoh: Siti Rahayu" />
+          <div class="err">Masukkan nama ibu</div>
+        </div>
+      </div>
+
+      <!-- Step 2: Age -->
+      <div class="step-page" id="preg-step-2">
+        <div class="step-title">🎂 Usia Ibu</div>
+        <div class="step-desc">Berapa usia ibu <strong id="preg-name-display-2"></strong>?</div>
+        <div class="field" id="f-preg-age">
+          <label>Usia (dalam tahun)</label>
+          <input type="number" id="inp-preg-age" placeholder="Contoh: 25" min="10" max="60" inputmode="numeric" />
+          <div class="hint">Isi antara 10 – 60 tahun</div>
+          <div class="err">Masukkan usia yang valid (10–60 tahun)</div>
+        </div>
+      </div>
+
+      <!-- Step 3: Months pregnant -->
+      <div class="step-page" id="preg-step-3">
+        <div class="step-title">🗓️ Usia Kehamilan</div>
+        <div class="step-desc">Kehamilan <strong id="preg-name-display-3"></strong> sudah bulan ke berapa?</div>
+        <div class="field" id="f-preg-months">
+          <label>Bulan Kehamilan</label>
+          <input type="number" id="inp-preg-months" placeholder="Contoh: 5" min="1" max="10" inputmode="numeric" />
+          <div class="hint">Isi antara 1 – 10 bulan</div>
+          <div class="err">Masukkan bulan kehamilan yang valid (1–10)</div>
+        </div>
+      </div>
+
+      <!-- Step 4: MUAC -->
+      <div class="step-page" id="preg-step-4">
+        <div class="step-title">📏 Pengukuran LiLA</div>
+        <div class="step-desc">Ukur Lingkar Lengan Atas (LiLA) pada lengan kiri ibu dengan pita LiLA.</div>
+        <div class="field" id="f-preg-muac">
+          <label>LiLA / MUAC (dalam sentimeter)</label>
+          <input type="number" id="inp-preg-muac" placeholder="Contoh: 22.5" step="0.1" min="10" max="45" inputmode="decimal" />
+          <div class="hint">Batas normal: ≥ 23.5 cm</div>
+          <div class="err">Masukkan ukuran LiLA yang valid (10–45 cm)</div>
+        </div>
+      </div>
+
+      <!-- Step 5: Blood pressure -->
+      <div class="step-page" id="preg-step-5">
+        <div class="step-title">🩺 Tekanan Darah</div>
+        <div class="step-desc">Bagaimana hasil pengukuran tekanan darah ibu?</div>
+        <div class="opt-group" id="bp-options">
+          <label class="opt-card" id="bp-opt-normal" onclick="selectBP('normal')">
+            <div class="opt-icon">✅</div>
+            <div>
+              <div class="opt-label">Normal</div>
+              <div class="opt-sub">Di bawah 140/90 mmHg</div>
+            </div>
+          </label>
+          <label class="opt-card" id="bp-opt-high" onclick="selectBP('high')">
+            <div class="opt-icon">⚠️</div>
+            <div>
+              <div class="opt-label">Tinggi</div>
+              <div class="opt-sub">140/90 mmHg atau lebih</div>
+            </div>
+          </label>
+          <label class="opt-card" id="bp-opt-skip" onclick="selectBP('skip')">
+            <div class="opt-icon">❓</div>
+            <div>
+              <div class="opt-label">Tidak tahu / Tidak ada alat</div>
+              <div class="opt-sub">Lewati pemeriksaan tekanan darah</div>
+            </div>
+          </label>
+        </div>
+        <div id="err-bp" style="font-size:0.75rem;color:var(--danger);margin-top:0.5rem;display:none">Pilih salah satu opsi</div>
+      </div>
+
+      <!-- Step 6: Anemia -->
+      <div class="step-page" id="preg-step-6">
+        <div class="step-title">🩸 Pemeriksaan Anemia</div>
+        <div class="step-desc">Apakah ibu memiliki tanda-tanda anemia?<br><small>• Telapak tangan / kelopak mata pucat<br>• Sangat lelah dan lemas<br>• Pusing atau sakit kepala</small></div>
+        <div class="opt-group">
+          <label class="opt-card" id="an-opt-yes" onclick="selectAnemia('yes')">
+            <div class="opt-icon">⚠️</div>
+            <div>
+              <div class="opt-label">Ya, ada tanda-tanda tersebut</div>
+            </div>
+          </label>
+          <label class="opt-card" id="an-opt-no" onclick="selectAnemia('no')">
+            <div class="opt-icon">✅</div>
+            <div>
+              <div class="opt-label">Tidak ada tanda anemia</div>
+            </div>
+          </label>
+          <label class="opt-card" id="an-opt-hb" onclick="selectAnemia('hb')">
+            <div class="opt-icon">🔬</div>
+            <div>
+              <div class="opt-label">Ada nilai Hb (hemoglobin)</div>
+              <div class="opt-sub">Masukkan angka Hb</div>
+            </div>
+          </label>
+        </div>
+        <div id="hb-field" class="field" style="margin-top:0.75rem;display:none" id="f-preg-hb">
+          <label>Nilai Hemoglobin (g/dL)</label>
+          <input type="number" id="inp-preg-hb" placeholder="Contoh: 9.5" step="0.1" min="1" max="25" inputmode="decimal" />
+          <div class="hint">Normal: ≥ 11 g/dL</div>
+        </div>
+        <div id="err-anemia" style="font-size:0.75rem;color:var(--danger);margin-top:0.5rem;display:none">Pilih salah satu opsi</div>
+      </div>
+
+      <!-- Navigation buttons -->
+      <div style="margin-top:1.5rem;display:flex;gap:0.65rem">
+        <button class="btn btn-outline" id="preg-prev-btn" onclick="pregPrev()" style="width:auto;padding:0.9rem 1.25rem">← Kembali</button>
+        <button class="btn btn-primary" id="preg-next-btn" onclick="pregNext()">Lanjut →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════ CHILD FORM SCREEN ═══════════════════════ -->
+<div id="screen-child" class="screen">
+  <div class="topbar">
+    <div class="topbar-row">
+      <button class="topbar-back" onclick="goBack()">←</button>
+      <h1>Skrining Anak &lt; 2 Thn</h1>
+    </div>
+    <div class="step-indicator" id="child-step-dots"></div>
+  </div>
+  <div class="scroll-body">
+    <div class="section">
+
+      <!-- Step 1: Name -->
+      <div class="step-page active" id="child-step-1">
+        <div class="step-title">👤 Nama Anak</div>
+        <div class="step-desc">Siapa nama lengkap anak ini?</div>
+        <div class="field" id="f-child-name">
+          <label>Nama Lengkap Anak</label>
+          <input type="text" id="inp-child-name" placeholder="Contoh: Budi Santoso" />
+          <div class="err">Masukkan nama anak</div>
+        </div>
+      </div>
+
+      <!-- Step 2: Age -->
+      <div class="step-page" id="child-step-2">
+        <div class="step-title">🎂 Usia Anak</div>
+        <div class="step-desc">Berapa usia <strong id="child-name-display-2"></strong>? (dalam bulan)</div>
+        <div class="field" id="f-child-age">
+          <label>Usia (bulan)</label>
+          <input type="number" id="inp-child-age" placeholder="Contoh: 14" min="0" max="24" inputmode="numeric" />
+          <div class="hint">Isi antara 0 – 24 bulan</div>
+          <div class="err">Masukkan usia yang valid (0–24 bulan)</div>
+        </div>
+      </div>
+
+      <!-- Step 3: Sex -->
+      <div class="step-page" id="child-step-3">
+        <div class="step-title">👦👧 Jenis Kelamin</div>
+        <div class="step-desc">Jenis kelamin <strong id="child-name-display-3"></strong>?</div>
+        <div class="opt-group">
+          <label class="opt-card" id="sex-opt-m" onclick="selectSex('M')">
+            <div class="opt-icon">👦</div>
+            <div><div class="opt-label">Laki-laki</div></div>
+          </label>
+          <label class="opt-card" id="sex-opt-f" onclick="selectSex('F')">
+            <div class="opt-icon">👧</div>
+            <div><div class="opt-label">Perempuan</div></div>
+          </label>
+        </div>
+        <div id="err-sex" style="font-size:0.75rem;color:var(--danger);margin-top:0.5rem;display:none">Pilih jenis kelamin</div>
+      </div>
+
+      <!-- Step 4: Weight -->
+      <div class="step-page" id="child-step-4">
+        <div class="step-title">⚖️ Berat Badan</div>
+        <div class="step-desc">Berapa berat badan <strong id="child-name-display-4"></strong>?</div>
+        <div class="field" id="f-child-weight">
+          <label>Berat Badan (kilogram)</label>
+          <input type="number" id="inp-child-weight" placeholder="Contoh: 8.2" step="0.1" min="0.5" max="30" inputmode="decimal" />
+          <div class="hint">Gunakan timbangan bayi. Contoh: 8.2</div>
+          <div class="err">Masukkan berat badan yang valid (0.5–30 kg)</div>
+        </div>
+      </div>
+
+      <!-- Step 5: Height -->
+      <div class="step-page" id="child-step-5">
+        <div class="step-title">📏 Panjang / Tinggi Badan</div>
+        <div class="step-desc">Berapa panjang/tinggi <strong id="child-name-display-5"></strong>?<br><small>Untuk anak &lt; 2 tahun, ukur dengan posisi berbaring (panjang badan).</small></div>
+        <div class="field" id="f-child-height">
+          <label>Panjang / Tinggi Badan (sentimeter)</label>
+          <input type="number" id="inp-child-height" placeholder="Contoh: 72.5" step="0.1" min="30" max="120" inputmode="decimal" />
+          <div class="hint">Contoh: 72.5</div>
+          <div class="err">Masukkan tinggi badan yang valid (30–120 cm)</div>
+        </div>
+      </div>
+
+      <div style="margin-top:1.5rem;display:flex;gap:0.65rem">
+        <button class="btn btn-outline" id="child-prev-btn" onclick="childPrev()" style="width:auto;padding:0.9rem 1.25rem">← Kembali</button>
+        <button class="btn btn-primary" id="child-next-btn" onclick="childNext()">Lanjut →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════ UPDATE PATIENT SCREEN ═══════════════════ -->
+<div id="screen-update" class="screen">
+  <div class="topbar">
+    <div class="topbar-row">
+      <button class="topbar-back" onclick="showScreen('home')">←</button>
+      <h1>Perbarui Data Pasien</h1>
+    </div>
+    <div class="search-bar">
+      <input type="text" id="update-search-inp" placeholder="Cari nama pasien..." oninput="searchPatients(this.value)" />
+    </div>
+  </div>
+  <div class="scroll-body">
+    <div class="section">
+      <div id="update-results">
+        <div class="empty-state">
+          <div class="empty-icon">🔍</div>
+          <p>Ketik minimal 2 huruf untuk mencari pasien.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════ PATIENT LIST SCREEN ═════════════════════ -->
+<div id="screen-patients" class="screen">
+  <div class="topbar">
+    <div class="topbar-row">
+      <button class="topbar-back" onclick="showScreen('home')">←</button>
+      <h1>Daftar Pasien</h1>
+    </div>
+  </div>
+  <div class="scroll-body">
+    <div id="patients-filter" style="display:flex;gap:0.5rem;padding:0.75rem 1rem 0;overflow-x:auto">
+      <button class="btn btn-primary btn-sm" style="white-space:nowrap;border-radius:20px" onclick="filterPatients('all')" id="f-all">Semua</button>
+      <button class="btn btn-outline btn-sm" style="white-space:nowrap;border-radius:20px" onclick="filterPatients('pregnant')" id="f-pregnant">🤰 Ibu Hamil</button>
+      <button class="btn btn-outline btn-sm" style="white-space:nowrap;border-radius:20px" onclick="filterPatients('cu2')" id="f-cu2">👶 Anak</button>
+      <button class="btn btn-outline btn-sm" style="white-space:nowrap;border-radius:20px;color:var(--danger);border-color:var(--danger)" onclick="filterPatients('referred')" id="f-referred">🚨 Dirujuk</button>
+    </div>
+    <div class="section">
+      <div class="card">
+        <div id="patients-list">
+          <div class="empty-state"><div class="empty-icon">⏳</div><p>Memuat...</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════ RESULT SCREEN ═══════════════════════════ -->
+<div id="screen-result" class="screen">
+  <div class="topbar">
+    <div class="topbar-row">
+      <button class="topbar-back" onclick="showScreen('home')">←</button>
+      <h1>Hasil Skrining</h1>
+    </div>
+  </div>
+  <div class="scroll-body">
+    <div id="result-status-banner" class="result-status-banner"></div>
+
+    <div id="result-referral" class="section" style="display:none">
+      <div class="referral-alert">
+        <div class="r-icon">🚨</div>
+        <div class="r-text">
+          <strong>Perlu Segera ke Puskesmas</strong>
+          Pasien ini perlu penanganan lebih lanjut dari tenaga kesehatan. Segera bawa ke Puskesmas.
+        </div>
+      </div>
+    </div>
+
+    <div class="label">📊 Hasil Pengukuran</div>
+    <div class="card">
+      <div id="result-stats" class="stat-grid"></div>
+    </div>
+
+    <div class="label" id="edu-label">📚 Pesan Edukasi</div>
+    <div class="card">
+      <div id="result-edu" class="edu-box"></div>
+    </div>
+
+    <div class="section" style="display:flex;flex-direction:column;gap:0.65rem">
+      <button class="btn btn-primary" id="result-history-btn" onclick="">Lihat Riwayat Lengkap →</button>
+      <button class="btn btn-outline" onclick="showScreen('home')">Kembali ke Menu Utama</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="loading-overlay" id="loading-overlay">
+  <div class="lo-spinner"></div>
+  <p id="loading-msg">Memproses...</p>
+</div>
+
+<div class="toast" id="toast"></div>
+
+
+<script>
+// ══════════════════════════════════════════════
+// State
+// ══════════════════════════════════════════════
+let kader = JSON.parse(localStorage.getItem('kader') || 'null');
+let allPatients = [];
+let filteredPatients = [];
+let prevScreen = 'home';
+
+// Pregnant form state
+let pregState = {
+  step: 1,
+  totalSteps: 6,
+  patientId: null,
+  data: {}
+};
+
+// Child form state
+let childState = {
+  step: 1,
+  totalSteps: 5,
+  patientId: null,
+  data: {}
+};
+
+
+// ══════════════════════════════════════════════
+// Boot
+// ══════════════════════════════════════════════
+window.addEventListener('load', () => {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/static/sw.js').catch(() => {});
+  }
+
+  window.addEventListener('online',  () => { document.getElementById('offline-bar').classList.remove('show'); });
+  window.addEventListener('offline', () => { document.getElementById('offline-bar').classList.add('show'); });
+  if (!navigator.onLine) document.getElementById('offline-bar').classList.add('show');
+
+  if (kader) {
+    showScreen('home');
+    renderHomeHeader();
+    loadRecentPatients();
+  } else {
+    showScreen('login');
+  }
+});
+
+
+// ══════════════════════════════════════════════
+// Screen navigation
+// ══════════════════════════════════════════════
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const el = document.getElementById('screen-' + name);
+  if (el) el.classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+function goBack() {
+  showScreen(prevScreen);
+}
+
+
+// ══════════════════════════════════════════════
+// Auth
+// ══════════════════════════════════════════════
+async function doAuth() {
+  const phone = document.getElementById('inp-phone').value.trim();
+  if (!phone || phone.length < 8) {
+    setFieldError('f-phone', 'err-phone', true);
+    return;
+  }
+  setFieldError('f-phone', 'err-phone', false);
+
+  showLoading('Memeriksa akun...');
+  try {
+    const res = await fetch('/api/kader/auth', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ phone })
+    });
+    const data = await res.json();
+    if (data.exists) {
+      kader = data;
+      localStorage.setItem('kader', JSON.stringify(kader));
+      hideLoading();
+      showScreen('home');
+      renderHomeHeader();
+      loadRecentPatients();
+    } else {
+      hideLoading();
+      // Store phone for registration
+      window._regPhone = phone;
+      showScreen('register');
+    }
+  } catch(e) {
+    hideLoading();
+    showToast('Tidak dapat terhubung. Periksa koneksi internet.');
+  }
+}
+
+async function doRegister() {
+  const name = document.getElementById('inp-reg-name').value.trim();
+  const village = document.getElementById('inp-reg-village').value.trim();
+  const district = document.getElementById('inp-reg-district').value.trim();
+
+  if (!name) {
+    setFieldError('f-reg-name', null, true);
+    return;
+  }
+  setFieldError('f-reg-name', null, false);
+
+  showLoading('Mendaftarkan akun...');
+  try {
+    const res = await fetch('/api/kader/register', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ phone: window._regPhone, name, village, district })
+    });
+    const data = await res.json();
+    kader = data;
+    localStorage.setItem('kader', JSON.stringify(kader));
+    hideLoading();
+    showScreen('home');
+    renderHomeHeader();
+    loadRecentPatients();
+    showToast('Selamat datang, ' + kader.name + '! 🎉');
+  } catch(e) {
+    hideLoading();
+    showToast('Gagal mendaftar. Coba lagi.');
+  }
+}
+
+function doLogout() {
+  if (!confirm('Keluar dari aplikasi?')) return;
+  localStorage.removeItem('kader');
+  kader = null;
+  document.getElementById('inp-phone').value = '';
+  showScreen('login');
+}
+
+
+// ══════════════════════════════════════════════
+// Home
+// ══════════════════════════════════════════════
+function renderHomeHeader() {
+  if (!kader) return;
+  document.getElementById('home-greeting').textContent = 'Halo, ' + kader.name + '!';
+  const loc = [kader.village, kader.district].filter(Boolean).join(', ');
+  document.getElementById('home-loc').textContent = loc ? '📍 ' + loc : '';
+}
+
+async function loadRecentPatients() {
+  if (!kader) return;
+  try {
+    const res = await fetch('/api/kader/' + kader.id + '/patients');
+    allPatients = await res.json();
+    const recent = allPatients.slice(0, 5);
+    const el = document.getElementById('recent-patients');
+    if (!recent.length) {
+      el.innerHTML = '<div class="empty-state" style="padding:1rem 0"><div class="empty-icon">🌱</div><p>Belum ada pasien. Tambahkan pasien pertamamu!</p></div>';
+    } else {
+      el.innerHTML = recent.map(p => patientRowHTML(p)).join('');
+    }
+  } catch(e) {
+    document.getElementById('recent-patients').innerHTML = '<div class="empty-state" style="padding:1rem 0"><p>Gagal memuat pasien.</p></div>';
+  }
+}
+
+function patientRowHTML(p) {
+  const icon = p.patient_type === 'pregnant' ? '🤰' : '👶';
+  const avatarClass = p.patient_type === 'pregnant' ? 'avatar-pregnant' : 'avatar-cu2';
+  const statusBadge = {
+    normal: '<span class="status-badge badge-normal">✅ Normal</span>',
+    at_risk: '<span class="status-badge badge-at_risk">⚠️ Perlu Perhatian</span>',
+    referred: '<span class="status-badge badge-referred">🚨 Dirujuk</span>',
+    not_screened: '<span class="status-badge badge-not_screened">Belum skrining</span>',
+  }[p.overall_status] || '';
+  const typeLabel = p.patient_type === 'pregnant' ? 'Ibu Hamil' : 'Anak < 2 Thn';
+  const visits = p.visit_count ? p.visit_count + ' kunjungan' : '';
+  return `<div class="patient-row" onclick="openPatientResult(${p.id})">
+    <div class="patient-avatar ${avatarClass}">${icon}</div>
+    <div class="patient-info">
+      <div class="patient-name">${esc(p.name)}</div>
+      <div class="patient-meta">${typeLabel}${visits ? ' · ' + visits : ''}</div>
+    </div>
+    ${statusBadge}
+  </div>`;
+}
+
+function openPatientResult(id) {
+  window.open('/hasil/' + id, '_blank');
+}
+
+
+// ══════════════════════════════════════════════
+// Patient list
+// ══════════════════════════════════════════════
+async function loadPatients() {
+  showScreen('patients');
+  prevScreen = 'home';
+  renderPatientList(allPatients);
+  // Refresh
+  try {
+    const res = await fetch('/api/kader/' + kader.id + '/patients');
+    allPatients = await res.json();
+    renderPatientList(allPatients);
+  } catch(e) {}
+}
+
+function filterPatients(type) {
+  // Toggle filter button styles
+  ['all','pregnant','cu2','referred'].forEach(t => {
+    const btn = document.getElementById('f-' + t);
+    if (t === type) {
+      btn.className = 'btn btn-primary btn-sm';
+      if (t === 'referred') btn.style.cssText = 'white-space:nowrap;border-radius:20px';
+      else btn.style.cssText = 'white-space:nowrap;border-radius:20px';
+    } else {
+      btn.className = 'btn btn-outline btn-sm';
+      if (t === 'referred') btn.style.cssText = 'white-space:nowrap;border-radius:20px;color:var(--danger);border-color:var(--danger)';
+      else btn.style.cssText = 'white-space:nowrap;border-radius:20px';
+    }
+  });
+
+  let filtered = allPatients;
+  if (type === 'pregnant') filtered = allPatients.filter(p => p.patient_type === 'pregnant');
+  else if (type === 'cu2') filtered = allPatients.filter(p => p.patient_type === 'cu2');
+  else if (type === 'referred') filtered = allPatients.filter(p => p.overall_status === 'referred');
+  renderPatientList(filtered);
+}
+
+function renderPatientList(patients) {
+  const el = document.getElementById('patients-list');
+  if (!patients.length) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">🌱</div><p>Tidak ada pasien ditemukan.</p></div>';
+    return;
+  }
+  el.innerHTML = patients.map(p => patientRowHTML(p)).join('');
+}
+
+
+// ══════════════════════════════════════════════
+// Update (search)
+// ══════════════════════════════════════════════
+let searchTimer = null;
+function searchPatients(q) {
+  clearTimeout(searchTimer);
+  if (q.length < 2) {
+    document.getElementById('update-results').innerHTML =
+      '<div class="empty-state"><div class="empty-icon">🔍</div><p>Ketik minimal 2 huruf untuk mencari.</p></div>';
+    return;
+  }
+  searchTimer = setTimeout(async () => {
+    try {
+      const res = await fetch('/api/kader/' + kader.id + '/search?q=' + encodeURIComponent(q));
+      const results = await res.json();
+      if (!results.length) {
+        document.getElementById('update-results').innerHTML =
+          '<div class="empty-state"><div class="empty-icon">😕</div><p>Pasien "' + esc(q) + '" tidak ditemukan.</p></div>';
+        return;
+      }
+      document.getElementById('update-results').innerHTML =
+        '<div class="card">' +
+        results.map(p => {
+          const icon = p.patient_type === 'pregnant' ? '🤰' : '👶';
+          const typeLabel = p.patient_type === 'pregnant' ? 'Ibu Hamil' : 'Anak < 2 Thn';
+          return `<div class="patient-row" onclick="selectUpdatePatient(${p.id}, '${p.patient_type}', '${esc(p.name)}')">
+            <div class="patient-avatar ${p.patient_type === 'pregnant' ? 'avatar-pregnant' : 'avatar-cu2'}">${icon}</div>
+            <div class="patient-info">
+              <div class="patient-name">${esc(p.name)}</div>
+              <div class="patient-meta">${typeLabel}</div>
+            </div>
+            <span style="color:var(--primary);font-size:0.8rem;font-weight:700">Pilih →</span>
+          </div>`;
+        }).join('') + '</div>';
+    } catch(e) {
+      showToast('Gagal mencari. Periksa koneksi.');
+    }
+  }, 300);
+}
+
+function selectUpdatePatient(id, type, name) {
+  if (type === 'pregnant') {
+    startPregnantForm(id, name);
+  } else {
+    startChildForm(id, name);
+  }
+}
+
+
+// ══════════════════════════════════════════════
+// Pregnant form
+// ══════════════════════════════════════════════
+function startPregnantForm(patientId, patientName) {
+  prevScreen = patientId ? 'update' : 'home';
+  pregState = { step: 1, totalSteps: 6, patientId, data: {} };
+  if (patientName) {
+    document.getElementById('inp-preg-name').value = patientName;
+    pregState.data.patient_name = patientName;
+  } else {
+    document.getElementById('inp-preg-name').value = '';
+  }
+  // Reset all fields
+  ['inp-preg-age','inp-preg-months','inp-preg-muac','inp-preg-hb'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.querySelectorAll('#screen-pregnant .opt-card').forEach(c => c.classList.remove('selected'));
+  document.getElementById('hb-field').style.display = 'none';
+  pregState.data.bp = null;
+  pregState.data.anemia = null;
+
+  buildStepDots('preg-step-dots', pregState.totalSteps, 1);
+  renderPregStep(1);
+  showScreen('pregnant');
+}
+
+function renderPregStep(step) {
+  for (let i = 1; i <= pregState.totalSteps; i++) {
+    const el = document.getElementById('preg-step-' + i);
+    if (el) el.classList.toggle('active', i === step);
+  }
+  buildStepDots('preg-step-dots', pregState.totalSteps, step);
+
+  document.getElementById('preg-prev-btn').style.display = step === 1 ? 'none' : 'block';
+
+  const nextBtn = document.getElementById('preg-next-btn');
+  if (step === pregState.totalSteps) {
+    nextBtn.textContent = 'Simpan & Lihat Hasil ✓';
+  } else {
+    nextBtn.textContent = 'Lanjut →';
+  }
+
+  // Fill name displays
+  const name = pregState.data.patient_name || document.getElementById('inp-preg-name').value || '';
+  ['2','3'].forEach(n => {
+    const el = document.getElementById('preg-name-display-' + n);
+    if (el) el.textContent = name;
+  });
+}
+
+function pregNext() {
+  const step = pregState.step;
+  if (!validatePregStep(step)) return;
+  savePregStepData(step);
+
+  if (step < pregState.totalSteps) {
+    pregState.step++;
+    renderPregStep(pregState.step);
+  } else {
+    submitPregnant();
+  }
+}
+
+function pregPrev() {
+  if (pregState.step > 1) {
+    pregState.step--;
+    renderPregStep(pregState.step);
+  }
+}
+
+function validatePregStep(step) {
+  if (step === 1) {
+    const val = document.getElementById('inp-preg-name').value.trim();
+    if (!val) { setFieldError('f-preg-name', null, true); return false; }
+    setFieldError('f-preg-name', null, false);
+  }
+  if (step === 2) {
+    const val = parseInt(document.getElementById('inp-preg-age').value);
+    if (!val || val < 10 || val > 60) { setFieldError('f-preg-age', null, true); return false; }
+    setFieldError('f-preg-age', null, false);
+  }
+  if (step === 3) {
+    const val = parseInt(document.getElementById('inp-preg-months').value);
+    if (!val || val < 1 || val > 10) { setFieldError('f-preg-months', null, true); return false; }
+    setFieldError('f-preg-months', null, false);
+  }
+  if (step === 4) {
+    const val = parseFloat(document.getElementById('inp-preg-muac').value);
+    if (!val || val < 10 || val > 45) { setFieldError('f-preg-muac', null, true); return false; }
+    setFieldError('f-preg-muac', null, false);
+  }
+  if (step === 5) {
+    if (!pregState.data.bp) { document.getElementById('err-bp').style.display = 'block'; return false; }
+    document.getElementById('err-bp').style.display = 'none';
+  }
+  if (step === 6) {
+    if (!pregState.data.anemia) { document.getElementById('err-anemia').style.display = 'block'; return false; }
+    if (pregState.data.anemia === 'hb') {
+      const hb = parseFloat(document.getElementById('inp-preg-hb').value);
+      if (!hb || hb < 1 || hb > 25) { document.getElementById('err-anemia').style.display = 'none'; return false; }
+    }
+    document.getElementById('err-anemia').style.display = 'none';
+  }
+  return true;
+}
+
+function savePregStepData(step) {
+  if (step === 1) pregState.data.patient_name = document.getElementById('inp-preg-name').value.trim();
+  if (step === 2) pregState.data.mother_age = parseInt(document.getElementById('inp-preg-age').value);
+  if (step === 3) pregState.data.months_pregnant = parseInt(document.getElementById('inp-preg-months').value);
+  if (step === 4) pregState.data.muac_cm = parseFloat(document.getElementById('inp-preg-muac').value.replace(',','.'));
+}
+
+function selectBP(val) {
+  pregState.data.bp = val;
+  ['normal','high','skip'].forEach(v => {
+    document.getElementById('bp-opt-' + v).classList.toggle('selected', v === val);
+  });
+  document.getElementById('err-bp').style.display = 'none';
+}
+
+function selectAnemia(val) {
+  pregState.data.anemia = val;
+  ['yes','no','hb'].forEach(v => {
+    document.getElementById('an-opt-' + v).classList.toggle('selected', v === val);
+  });
+  document.getElementById('hb-field').style.display = val === 'hb' ? 'block' : 'none';
+  document.getElementById('err-anemia').style.display = 'none';
+}
+
+async function submitPregnant() {
+  const d = pregState.data;
+  const bp = d.bp;
+  let systolic = null, diastolic = null, bp_skipped = false;
+  if (bp === 'normal')     { systolic = 120; diastolic = 80; }
+  else if (bp === 'high')  { systolic = 145; diastolic = 95; }
+  else                     { bp_skipped = true; }
+
+  let anemia_symptoms = null, hb_gdl = null;
+  if (d.anemia === 'yes')  anemia_symptoms = true;
+  else if (d.anemia === 'no') anemia_symptoms = false;
+  else if (d.anemia === 'hb') hb_gdl = parseFloat(document.getElementById('inp-preg-hb').value.replace(',','.'));
+
+  const payload = {
+    kader_id: kader.id,
+    patient_id: pregState.patientId || null,
+    patient_name: d.patient_name,
+    mother_age: d.mother_age,
+    months_pregnant: d.months_pregnant,
+    muac_cm: d.muac_cm,
+    systolic_bp: systolic,
+    diastolic_bp: diastolic,
+    bp_skipped,
+    anemia_symptoms,
+    hb_gdl,
+  };
+
+  showLoading('Memproses skrining...');
+  try {
+    const res = await fetch('/api/screen/pregnant', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const result = await res.json();
+    hideLoading();
+    // Reload patient list in bg
+    fetch('/api/kader/' + kader.id + '/patients').then(r => r.json()).then(data => { allPatients = data; loadRecentPatients(); });
+    showResult('pregnant', result, d);
+  } catch(e) {
+    hideLoading();
+    showToast('Gagal menyimpan. Periksa koneksi internet.');
+  }
+}
+
+
+// ══════════════════════════════════════════════
+// Child form
+// ══════════════════════════════════════════════
+function startChildForm(patientId, patientName) {
+  prevScreen = patientId ? 'update' : 'home';
+  childState = { step: 1, totalSteps: 5, patientId, data: {} };
+  if (patientName) {
+    document.getElementById('inp-child-name').value = patientName;
+    childState.data.patient_name = patientName;
+  } else {
+    document.getElementById('inp-child-name').value = '';
+  }
+  ['inp-child-age','inp-child-weight','inp-child-height'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.querySelectorAll('#screen-child .opt-card').forEach(c => c.classList.remove('selected'));
+  childState.data.sex = null;
+
+  buildStepDots('child-step-dots', childState.totalSteps, 1);
+  renderChildStep(1);
+  showScreen('child');
+}
+
+function renderChildStep(step) {
+  for (let i = 1; i <= childState.totalSteps; i++) {
+    const el = document.getElementById('child-step-' + i);
+    if (el) el.classList.toggle('active', i === step);
+  }
+  buildStepDots('child-step-dots', childState.totalSteps, step);
+
+  document.getElementById('child-prev-btn').style.display = step === 1 ? 'none' : 'block';
+
+  const nextBtn = document.getElementById('child-next-btn');
+  nextBtn.textContent = step === childState.totalSteps ? 'Simpan & Lihat Hasil ✓' : 'Lanjut →';
+
+  const name = childState.data.patient_name || document.getElementById('inp-child-name').value || '';
+  ['2','3','4','5'].forEach(n => {
+    const el = document.getElementById('child-name-display-' + n);
+    if (el) el.textContent = name;
+  });
+}
+
+function childNext() {
+  const step = childState.step;
+  if (!validateChildStep(step)) return;
+  saveChildStepData(step);
+
+  if (step < childState.totalSteps) {
+    childState.step++;
+    renderChildStep(childState.step);
+  } else {
+    submitChild();
+  }
+}
+
+function childPrev() {
+  if (childState.step > 1) {
+    childState.step--;
+    renderChildStep(childState.step);
+  }
+}
+
+function validateChildStep(step) {
+  if (step === 1) {
+    const val = document.getElementById('inp-child-name').value.trim();
+    if (!val) { setFieldError('f-child-name', null, true); return false; }
+    setFieldError('f-child-name', null, false);
+  }
+  if (step === 2) {
+    const val = parseInt(document.getElementById('inp-child-age').value);
+    if (val === undefined || val === null || isNaN(val) || val < 0 || val > 24) {
+      setFieldError('f-child-age', null, true); return false;
+    }
+    setFieldError('f-child-age', null, false);
+  }
+  if (step === 3) {
+    if (!childState.data.sex) { document.getElementById('err-sex').style.display = 'block'; return false; }
+    document.getElementById('err-sex').style.display = 'none';
+  }
+  if (step === 4) {
+    const val = parseFloat(document.getElementById('inp-child-weight').value);
+    if (!val || val < 0.5 || val > 30) { setFieldError('f-child-weight', null, true); return false; }
+    setFieldError('f-child-weight', null, false);
+  }
+  if (step === 5) {
+    const val = parseFloat(document.getElementById('inp-child-height').value);
+    if (!val || val < 30 || val > 120) { setFieldError('f-child-height', null, true); return false; }
+    setFieldError('f-child-height', null, false);
+  }
+  return true;
+}
+
+function saveChildStepData(step) {
+  if (step === 1) childState.data.patient_name = document.getElementById('inp-child-name').value.trim();
+  if (step === 2) childState.data.age_months = parseInt(document.getElementById('inp-child-age').value);
+  if (step === 4) childState.data.weight_kg = parseFloat(document.getElementById('inp-child-weight').value.replace(',','.'));
+  if (step === 5) childState.data.height_cm = parseFloat(document.getElementById('inp-child-height').value.replace(',','.'));
+}
+
+function selectSex(val) {
+  childState.data.sex = val;
+  document.getElementById('sex-opt-m').classList.toggle('selected', val === 'M');
+  document.getElementById('sex-opt-f').classList.toggle('selected', val === 'F');
+  document.getElementById('err-sex').style.display = 'none';
+}
+
+async function submitChild() {
+  const d = childState.data;
+  const payload = {
+    kader_id: kader.id,
+    patient_id: childState.patientId || null,
+    patient_name: d.patient_name,
+    age_months: d.age_months,
+    sex: d.sex,
+    weight_kg: d.weight_kg,
+    height_cm: d.height_cm,
+  };
+
+  showLoading('Memproses skrining...');
+  try {
+    const res = await fetch('/api/screen/child', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const result = await res.json();
+    hideLoading();
+    fetch('/api/kader/' + kader.id + '/patients').then(r => r.json()).then(data => { allPatients = data; loadRecentPatients(); });
+    showResult('child', result, d);
+  } catch(e) {
+    hideLoading();
+    showToast('Gagal menyimpan. Periksa koneksi internet.');
+  }
+}
+
+
+// ══════════════════════════════════════════════
+// Result
+// ══════════════════════════════════════════════
+function showResult(type, result, formData) {
+  const status = result.overall_status;
+  const bannerConfig = {
+    normal:   { icon: '✅', label: 'Normal', sub: 'Kondisi pasien baik', cls: 'banner-normal' },
+    at_risk:  { icon: '⚠️', label: 'Perlu Perhatian', sub: 'Ada indikasi yang perlu dipantau', cls: 'banner-at_risk' },
+    referred: { icon: '🚨', label: 'Perlu Dirujuk', sub: 'Segera ke Puskesmas', cls: 'banner-referred' },
+  };
+  const cfg = bannerConfig[status] || bannerConfig.normal;
+
+  document.getElementById('result-status-banner').className = 'result-status-banner ' + cfg.cls;
+  document.getElementById('result-status-banner').innerHTML = `
+    <div class="result-status-icon">${cfg.icon}</div>
+    <div class="result-status-label">${esc(result.patient_name)}: ${cfg.label}</div>
+    <div class="result-status-sub">${cfg.sub}</div>
+  `;
+
+  document.getElementById('result-referral').style.display = result.needs_referral ? 'block' : 'none';
+
+  let statsHTML = '';
+  if (type === 'pregnant') {
+    const muacColor = result.muac_status === 'normal' ? '#15803d' : result.muac_status === 'kek' ? '#d97706' : '#dc2626';
+    const anColor = result.anemia_status === 'normal' ? '#15803d' : result.anemia_status === 'moderate' ? '#d97706' : '#dc2626';
+    statsHTML = `
+      <div class="stat-box"><div class="stat-lbl">LiLA / MUAC</div>
+        <div class="stat-val" style="color:${muacColor}">${result.muac_cm} cm</div>
+        <div class="stat-sub">${esc(result.muac_label)}</div></div>
+      <div class="stat-box"><div class="stat-lbl">Anemia</div>
+        <div class="stat-val" style="color:${anColor}">${esc(result.anemia_label)}</div></div>
+      <div class="stat-box"><div class="stat-lbl">Tekanan Darah</div>
+        <div class="stat-val">${esc(result.bp_label)}</div></div>
+      <div class="stat-box"><div class="stat-lbl">Bulan Kehamilan</div>
+        <div class="stat-val">Bulan ke-${formData.months_pregnant || '?'}</div></div>
+    `;
+  } else {
+    const wColor = !result.waz ? '' : result.waz < -3 ? '#dc2626' : result.waz < -2 ? '#d97706' : '#15803d';
+    const hColor = !result.haz ? '' : result.haz < -3 ? '#dc2626' : result.haz < -2 ? '#d97706' : '#15803d';
+    statsHTML = `
+      <div class="stat-box"><div class="stat-lbl">Berat Badan</div>
+        <div class="stat-val">${result.weight_kg} kg</div>
+        <div class="stat-sub" style="color:${wColor}">WAZ: ${result.waz ?? '—'} · ${esc(result.weight_label)}</div></div>
+      <div class="stat-box"><div class="stat-lbl">Tinggi Badan</div>
+        <div class="stat-val">${result.height_cm} cm</div>
+        <div class="stat-sub" style="color:${hColor}">HAZ: ${result.haz ?? '—'} · ${esc(result.height_label)}</div></div>
+      <div class="stat-box"><div class="stat-lbl">Usia</div>
+        <div class="stat-val">${result.age_months} bulan</div></div>
+      <div class="stat-box"><div class="stat-lbl">Jenis Kelamin</div>
+        <div class="stat-val">${esc(result.sex_label)}</div></div>
+    `;
+  }
+  document.getElementById('result-stats').innerHTML = statsHTML;
+
+  // Education message — strip ||| separators
+  const eduParts = (result.education_message || '').split('|||').map(s => s.trim()).filter(Boolean);
+  document.getElementById('result-edu').textContent = eduParts[0] || '';
+
+  document.getElementById('result-history-btn').onclick = () => {
+    window.open('/hasil/' + result.patient_id, '_blank');
+  };
+
+  showScreen('result');
+}
+
+
+// ══════════════════════════════════════════════
+// Utilities
+// ══════════════════════════════════════════════
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function setFieldError(fieldId, errId, show) {
+  const field = document.getElementById(fieldId);
+  if (!field) return;
+  field.classList.toggle('has-error', show);
+}
+
+function buildStepDots(containerId, total, current) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  let html = '';
+  for (let i = 1; i <= total; i++) {
+    const cls = i < current ? 'done' : i === current ? 'active' : '';
+    html += `<div class="step-dot ${cls}"></div>`;
+  }
+  html += `<div class="step-label">Langkah ${current} dari ${total}</div>`;
+  el.innerHTML = html;
+}
+
+function showLoading(msg) {
+  document.getElementById('loading-msg').textContent = msg || 'Memproses...';
+  document.getElementById('loading-overlay').classList.add('show');
+}
+
+function hideLoading() {
+  document.getElementById('loading-overlay').classList.remove('show');
+}
+
+function showToast(msg, duration = 3000) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), duration);
+}
+
+// Enter key advances forms
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    const active = document.querySelector('.screen.active');
+    if (!active) return;
+    const id = active.id;
+    if (id === 'screen-login') doAuth();
+    else if (id === 'screen-register') doRegister();
+    else if (id === 'screen-pregnant') pregNext();
+    else if (id === 'screen-child') childNext();
+  }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,1116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CHW Patient Tracker — Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --primary: #1a6e4a;
+      --primary-light: #e8f5ee;
+      --accent: #f59e0b;
+      --danger: #dc2626;
+      --warning: #d97706;
+      --success: #16a34a;
+      --neutral: #6b7280;
+      --bg: #f0f4f8;
+    }
+    body { background: var(--bg); font-family: 'Segoe UI', sans-serif; color: #1f2937; }
+
+    /* Sidebar */
+    .sidebar {
+      width: 240px; min-height: 100vh; background: var(--primary);
+      color: white; position: fixed; top: 0; left: 0; z-index: 100;
+      display: flex; flex-direction: column;
+    }
+    .sidebar-brand {
+      padding: 1.5rem 1.25rem; border-bottom: 1px solid rgba(255,255,255,0.15);
+    }
+    .sidebar-brand h5 { margin: 0; font-weight: 700; font-size: 1.05rem; }
+    .sidebar-brand small { opacity: 0.7; font-size: 0.75rem; }
+    .sidebar-nav { padding: 1rem 0; flex: 1; }
+    .sidebar-nav .nav-item { padding: 0.25rem 0.75rem; }
+    .sidebar-nav .nav-link {
+      color: rgba(255,255,255,0.8); border-radius: 8px; padding: 0.6rem 1rem;
+      display: flex; align-items: center; gap: 0.6rem; font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+    .sidebar-nav .nav-link:hover, .sidebar-nav .nav-link.active {
+      background: rgba(255,255,255,0.15); color: white;
+    }
+    .sidebar-nav .nav-link i { font-size: 1.1rem; }
+
+    /* Main content */
+    .main-content { margin-left: 240px; padding: 2rem; min-height: 100vh; }
+
+    /* Top bar */
+    .topbar {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 1.75rem;
+    }
+    .topbar h4 { margin: 0; font-weight: 700; color: #111827; }
+    .topbar .badge-time {
+      background: white; border: 1px solid #e5e7eb; padding: 0.4rem 0.9rem;
+      border-radius: 20px; font-size: 0.82rem; color: var(--neutral);
+    }
+
+    /* Stat cards */
+    .stat-card {
+      background: white; border-radius: 14px; padding: 1.25rem 1.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.07); display: flex;
+      align-items: center; gap: 1rem; height: 100%;
+    }
+    .stat-icon {
+      width: 52px; height: 52px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.4rem; flex-shrink: 0;
+    }
+    .stat-icon.green { background: #dcfce7; color: var(--success); }
+    .stat-icon.blue  { background: #dbeafe; color: #2563eb; }
+    .stat-icon.amber { background: #fef3c7; color: var(--warning); }
+    .stat-icon.red   { background: #fee2e2; color: var(--danger); }
+    .stat-icon.purple{ background: #ede9fe; color: #7c3aed; }
+    .stat-info .label { font-size: 0.78rem; color: var(--neutral); text-transform: uppercase; letter-spacing: 0.05em; }
+    .stat-info .value { font-size: 1.75rem; font-weight: 700; line-height: 1.2; color: #111827; }
+    .stat-info .sub   { font-size: 0.78rem; color: var(--neutral); margin-top: 0.1rem; }
+
+    /* Chart cards */
+    .chart-card {
+      background: white; border-radius: 14px; padding: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.07); height: 100%;
+    }
+    .chart-card h6 { font-weight: 600; color: #111827; margin-bottom: 1rem; font-size: 0.9rem; }
+
+    /* Patient table */
+    .table-card {
+      background: white; border-radius: 14px; padding: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+    }
+    .table-card h6 { font-weight: 600; margin-bottom: 1rem; }
+    .table thead th {
+      font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em;
+      color: var(--neutral); border-bottom: 1px solid #e5e7eb; padding: 0.6rem 0.75rem;
+      background: #f9fafb;
+    }
+    .table tbody td { font-size: 0.87rem; vertical-align: middle; padding: 0.75rem; }
+    .table tbody tr:hover { background: #f9fafb; cursor: pointer; }
+
+    /* Status badges */
+    .badge-normal   { background: #dcfce7; color: #15803d; }
+    .badge-at_risk  { background: #fef3c7; color: #92400e; }
+    .badge-referred { background: #fee2e2; color: #991b1b; }
+    .badge-not_screened { background: #f3f4f6; color: #6b7280; }
+    .status-badge {
+      padding: 0.25rem 0.6rem; border-radius: 20px; font-size: 0.75rem;
+      font-weight: 600; white-space: nowrap;
+    }
+
+    /* Filters */
+    .filter-bar {
+      display: flex; gap: 0.75rem; margin-bottom: 1rem;
+      flex-wrap: wrap; align-items: center;
+    }
+    .filter-bar select, .filter-bar input {
+      border: 1px solid #e5e7eb; border-radius: 8px; padding: 0.4rem 0.75rem;
+      font-size: 0.85rem; background: white; color: #374151;
+    }
+    .filter-bar select:focus, .filter-bar input:focus {
+      outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px rgba(26,110,74,0.15);
+    }
+
+    /* Modal */
+    .modal-header { background: var(--primary); color: white; }
+    .modal-header .btn-close { filter: invert(1); }
+    .detail-row { padding: 0.5rem 0; border-bottom: 1px solid #f3f4f6; font-size: 0.9rem; }
+    .detail-row:last-child { border-bottom: none; }
+    .detail-label { color: var(--neutral); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.03em; }
+    .edu-message { background: #f0fdf4; border-left: 3px solid var(--success); padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; font-size: 0.88rem; white-space: pre-wrap; }
+    .ref-message { background: #fef2f2; border-left: 3px solid var(--danger); padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; font-size: 0.88rem; white-space: pre-wrap; }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      .main-content { margin-left: 0; padding: 1rem; }
+    }
+
+    /* Section views */
+    .view-section { display: none; }
+    .view-section.active { display: block; }
+
+    /* Whatsapp setup card */
+    .setup-card { background: white; border-radius: 14px; padding: 1.75rem; box-shadow: 0 1px 3px rgba(0,0,0,0.07); }
+    .setup-step { display: flex; gap: 1rem; padding: 1rem 0; border-bottom: 1px solid #f3f4f6; }
+    .setup-step:last-child { border-bottom: none; }
+    .step-num { width: 32px; height: 32px; border-radius: 50%; background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.9rem; flex-shrink: 0; }
+    .code-block { background: #1e293b; color: #e2e8f0; padding: 0.75rem 1rem; border-radius: 8px; font-family: monospace; font-size: 0.85rem; margin-top: 0.5rem; }
+  </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div class="sidebar-brand">
+    <div style="font-size:1.5rem; margin-bottom:0.25rem;">🏥</div>
+    <h5>CHW Patient Tracker</h5>
+    <small>Health Monitoring System</small>
+  </div>
+  <nav class="sidebar-nav">
+    <ul class="nav flex-column" style="list-style:none; padding:0; margin:0;">
+      <li class="nav-item">
+        <a class="nav-link active" href="#" onclick="showView('dashboard')">
+          <i class="bi bi-speedometer2"></i> Dashboard
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="#" onclick="showView('patients')">
+          <i class="bi bi-people"></i> Patients
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="#" onclick="showView('pregnant')">
+          <i class="bi bi-heart-pulse"></i> Pregnant Mothers
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="#" onclick="showView('children')">
+          <i class="bi bi-balloon-heart"></i> Children Under 2
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="#" onclick="showView('chws')">
+          <i class="bi bi-person-badge"></i> Health Workers
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="#" onclick="showView('setup')">
+          <i class="bi bi-whatsapp"></i> WhatsApp Setup
+        </a>
+      </li>
+    </ul>
+  </nav>
+  <div style="padding:1rem 1.25rem; border-top:1px solid rgba(255,255,255,0.15); font-size:0.75rem; opacity:0.6;">
+    Last updated: <span id="last-updated">—</span>
+  </div>
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="main-content">
+
+  <!-- ================================================================ -->
+  <!-- DASHBOARD VIEW -->
+  <!-- ================================================================ -->
+  <div id="view-dashboard" class="view-section active">
+    <div class="topbar">
+      <div>
+        <h4>📊 Dashboard Overview</h4>
+        <small class="text-muted">Community Health Worker — Patient Tracking System</small>
+      </div>
+      <div>
+        <span class="badge-time" id="current-date">Loading...</span>
+        <button class="btn btn-sm ms-2" style="background:var(--primary);color:white;border-radius:8px;" onclick="loadAll()">
+          <i class="bi bi-arrow-clockwise"></i> Refresh
+        </button>
+      </div>
+    </div>
+
+    <!-- Stat Cards -->
+    <div class="row g-3 mb-4">
+      <div class="col-6 col-xl-2">
+        <div class="stat-card">
+          <div class="stat-icon blue"><i class="bi bi-person-badge"></i></div>
+          <div class="stat-info">
+            <div class="label">CHWs</div>
+            <div class="value" id="stat-chws">—</div>
+            <div class="sub">Active workers</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-xl-2">
+        <div class="stat-card">
+          <div class="stat-icon green"><i class="bi bi-people"></i></div>
+          <div class="stat-info">
+            <div class="label">Total Patients</div>
+            <div class="value" id="stat-patients">—</div>
+            <div class="sub">All registered</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-xl-2">
+        <div class="stat-card">
+          <div class="stat-icon purple"><i class="bi bi-heart-pulse"></i></div>
+          <div class="stat-info">
+            <div class="label">Pregnant</div>
+            <div class="value" id="stat-pregnant">—</div>
+            <div class="sub">Mothers</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-xl-2">
+        <div class="stat-card">
+          <div class="stat-icon amber"><i class="bi bi-balloon-heart"></i></div>
+          <div class="stat-info">
+            <div class="label">Children U2</div>
+            <div class="value" id="stat-cu2">—</div>
+            <div class="sub">Under 2 years</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-xl-2">
+        <div class="stat-card">
+          <div class="stat-icon green"><i class="bi bi-calendar-week"></i></div>
+          <div class="stat-info">
+            <div class="label">This Week</div>
+            <div class="value" id="stat-week">—</div>
+            <div class="sub">Screenings</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-xl-2">
+        <div class="stat-card">
+          <div class="stat-icon red"><i class="bi bi-hospital"></i></div>
+          <div class="stat-info">
+            <div class="label">Referred</div>
+            <div class="value" id="stat-referred">—</div>
+            <div class="sub">Need facility</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Charts Row 1 -->
+    <div class="row g-3 mb-4">
+      <div class="col-md-8">
+        <div class="chart-card">
+          <h6><i class="bi bi-graph-up me-2" style="color:var(--primary)"></i>Monthly Screening Trend</h6>
+          <canvas id="chart-trend" height="120"></canvas>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="chart-card">
+          <h6><i class="bi bi-pie-chart me-2" style="color:var(--primary)"></i>Overall Patient Status</h6>
+          <canvas id="chart-overall-status" height="180"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Charts Row 2 -->
+    <div class="row g-3 mb-4">
+      <div class="col-md-4">
+        <div class="chart-card">
+          <h6><i class="bi bi-heart-pulse me-2" style="color:#7c3aed"></i>Pregnant — MUAC Status</h6>
+          <canvas id="chart-muac" height="180"></canvas>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="chart-card">
+          <h6><i class="bi bi-speedometer me-2" style="color:var(--warning)"></i>Children — Weight Status</h6>
+          <canvas id="chart-weight" height="180"></canvas>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="chart-card">
+          <h6><i class="bi bi-rulers me-2" style="color:#2563eb"></i>Children — Height/Stunting</h6>
+          <canvas id="chart-height" height="180"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Patients Table -->
+    <div class="table-card">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 class="mb-0"><i class="bi bi-clock-history me-2" style="color:var(--primary)"></i>Recent Patients</h6>
+        <button class="btn btn-sm" style="background:var(--primary-light);color:var(--primary);border-radius:8px;"
+          onclick="showView('patients')">View All</button>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0" id="table-recent">
+          <thead>
+            <tr>
+              <th>Name</th><th>Type</th><th>CHW</th><th>Status</th><th>Date</th>
+            </tr>
+          </thead>
+          <tbody id="recent-patients-body">
+            <tr><td colspan="5" class="text-center text-muted py-4">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div><!-- /dashboard view -->
+
+
+  <!-- ================================================================ -->
+  <!-- PATIENTS VIEW -->
+  <!-- ================================================================ -->
+  <div id="view-patients" class="view-section">
+    <div class="topbar">
+      <h4>👥 All Patients</h4>
+    </div>
+    <div class="table-card">
+      <div class="filter-bar">
+        <input type="text" id="search-input" placeholder="🔍 Cari nama pasien..." oninput="filterPatients()" />
+        <select id="filter-district" onchange="filterPatients()">
+          <option value="">Semua Kecamatan</option>
+        </select>
+        <select id="filter-type" onchange="filterPatients()">
+          <option value="">Semua Tipe</option>
+          <option value="pregnant">🤰 Ibu Hamil</option>
+          <option value="cu2">👶 Anak Bawah 2 Tahun</option>
+        </select>
+        <select id="filter-status" onchange="filterPatients()">
+          <option value="">Semua Status</option>
+          <option value="normal">✅ Normal</option>
+          <option value="at_risk">⚠️ Perlu Perhatian</option>
+          <option value="referred">🚨 Perlu Dirujuk</option>
+        </select>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <th>#</th><th>Name</th><th>Type</th><th>CHW</th>
+              <th>Key Measurements</th><th>Status</th><th>Date</th>
+            </tr>
+          </thead>
+          <tbody id="patients-body">
+            <tr><td colspan="7" class="text-center text-muted py-4">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="d-flex justify-content-between align-items-center mt-3">
+        <small class="text-muted" id="patients-count">—</small>
+        <div id="pagination" class="d-flex gap-2"></div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ================================================================ -->
+  <!-- PREGNANT VIEW -->
+  <!-- ================================================================ -->
+  <div id="view-pregnant" class="view-section">
+    <div class="topbar">
+      <h4>🤰 Pregnant Mothers</h4>
+    </div>
+    <div class="table-card">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr><th>Name</th><th>CHW</th><th>MUAC (cm)</th><th>MUAC Status</th>
+              <th>Anemia</th><th>Overall</th><th>Referred</th><th>Date</th></tr>
+          </thead>
+          <tbody id="pregnant-body">
+            <tr><td colspan="8" class="text-center text-muted py-4">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ================================================================ -->
+  <!-- CHILDREN VIEW -->
+  <!-- ================================================================ -->
+  <div id="view-children" class="view-section">
+    <div class="topbar">
+      <h4>👶 Children Under 2</h4>
+    </div>
+    <div class="table-card">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr><th>Name</th><th>CHW</th><th>Age (mo)</th><th>Sex</th>
+              <th>Weight (kg)</th><th>WAZ</th><th>Height (cm)</th><th>HAZ</th>
+              <th>Status</th><th>Referred</th></tr>
+          </thead>
+          <tbody id="children-body">
+            <tr><td colspan="10" class="text-center text-muted py-4">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ================================================================ -->
+  <!-- CHWs VIEW -->
+  <!-- ================================================================ -->
+  <div id="view-chws" class="view-section">
+    <div class="topbar">
+      <h4>🏷️ Community Health Workers</h4>
+    </div>
+    <div class="row g-3" id="chw-cards">
+      <div class="col-12 text-center text-muted py-4">Loading...</div>
+    </div>
+  </div>
+
+
+  <!-- ================================================================ -->
+  <!-- WHATSAPP SETUP VIEW -->
+  <!-- ================================================================ -->
+  <div id="view-setup" class="view-section">
+    <div class="topbar">
+      <h4><i class="bi bi-whatsapp me-2" style="color:#25d366"></i>WhatsApp Setup Guide</h4>
+    </div>
+    <div class="row g-3">
+      <div class="col-md-8">
+        <div class="setup-card">
+          <h5 class="fw-bold mb-1">Connect to WhatsApp via Twilio</h5>
+          <p class="text-muted mb-3">Follow these steps to make the chatbot live on WhatsApp</p>
+
+          <div class="setup-step">
+            <div class="step-num">1</div>
+            <div>
+              <strong>Create a Twilio Account</strong>
+              <p class="text-muted mb-1 mt-1" style="font-size:0.88rem;">
+                Go to <strong>twilio.com</strong> and sign up for a free account.
+                Get your <code>Account SID</code> and <code>Auth Token</code> from the Console dashboard.
+              </p>
+            </div>
+          </div>
+
+          <div class="setup-step">
+            <div class="step-num">2</div>
+            <div>
+              <strong>Enable WhatsApp Sandbox</strong>
+              <p class="text-muted mb-1 mt-1" style="font-size:0.88rem;">
+                In Twilio Console → Messaging → Try it Out → Send a WhatsApp message.<br>
+                Join the sandbox by sending a join code from your WhatsApp to <strong>+1 415 523 8886</strong>.
+              </p>
+            </div>
+          </div>
+
+          <div class="setup-step">
+            <div class="step-num">3</div>
+            <div>
+              <strong>Set Your .env File</strong>
+              <div class="code-block">
+TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx<br>
+TWILIO_AUTH_TOKEN=your_auth_token_here<br>
+ANTHROPIC_API_KEY=sk-ant-xxxxxxxxxxxx<br>
+PORT=8000
+              </div>
+            </div>
+          </div>
+
+          <div class="setup-step">
+            <div class="step-num">4</div>
+            <div>
+              <strong>Start the server + expose with ngrok</strong>
+              <div class="code-block">
+# Terminal 1 — start server<br>
+./start.sh<br><br>
+# Terminal 2 — get public URL<br>
+ngrok http 8000
+              </div>
+            </div>
+          </div>
+
+          <div class="setup-step">
+            <div class="step-num">5</div>
+            <div>
+              <strong>Configure Twilio Webhook URL</strong>
+              <p class="text-muted mb-1 mt-1" style="font-size:0.88rem;">
+                In Twilio Console → WhatsApp Sandbox → set the <strong>When a message comes in</strong> URL to:<br>
+                <code>https://&lt;your-ngrok-url&gt;/webhook/whatsapp</code> (POST method)
+              </p>
+            </div>
+          </div>
+
+          <div class="setup-step">
+            <div class="step-num">6</div>
+            <div>
+              <strong>Test it!</strong>
+              <p class="text-muted mb-1 mt-1" style="font-size:0.88rem;">
+                Send <strong>"Hi"</strong> from your WhatsApp to the sandbox number.<br>
+                The bot will greet you and guide you through registration.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-4">
+        <div class="setup-card">
+          <h6 class="fw-bold mb-3">📲 Bot Commands</h6>
+          <table class="table table-sm">
+            <tbody>
+              <tr><td><code>Hi</code></td><td>Mulai / daftar</td></tr>
+              <tr><td><code>1</code></td><td>Tambah ibu hamil</td></tr>
+              <tr><td><code>2</code></td><td>Tambah anak bawah 2 tahun</td></tr>
+              <tr><td><code>3</code></td><td>Perbarui data pasien</td></tr>
+              <tr><td><code>4</code></td><td>Lihat daftar pasien saya</td></tr>
+              <tr><td><code>5</code></td><td>Panduan bantuan</td></tr>
+              <tr><td><code>menu</code></td><td>Kembali ke menu utama</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="setup-card mt-3">
+          <h6 class="fw-bold mb-3">🏥 Screening Thresholds</h6>
+          <p class="fw-semibold mb-1" style="font-size:0.85rem;">Ibu Hamil (Kemenkes RI)</p>
+          <ul style="font-size:0.82rem;" class="text-muted">
+            <li>LiLA ≥23.5 cm → Normal</li>
+            <li>LiLA 21.0–23.4 → KEK (Perhatian)</li>
+            <li>LiLA &lt;21 cm → KEK Berat (Rujuk)</li>
+            <li>Tekanan darah ≥140/90 → Hipertensi (Rujuk)</li>
+            <li>Hb ≥11 g/dL → Normal</li>
+            <li>Hb 7–10.9 → Anemia Sedang</li>
+            <li>Hb &lt;7 → Anemia Berat (Rujuk)</li>
+          </ul>
+          <p class="fw-semibold mb-1" style="font-size:0.85rem;">Anak Bawah 2 Tahun (WHO)</p>
+          <ul style="font-size:0.82rem;" class="text-muted">
+            <li>WAZ ≥-2 → Normal</li>
+            <li>WAZ -2 s/d -3 → Berat Kurang</li>
+            <li>WAZ &lt;-3 → Gizi Buruk (Rujuk)</li>
+            <li>HAZ ≥-2 → Normal</li>
+            <li>HAZ -2 s/d -3 → Stunting</li>
+            <li>HAZ &lt;-3 → Stunting Berat (Rujuk)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main-content -->
+
+
+<!-- ================================================================ -->
+<!-- PATIENT DETAIL MODAL -->
+<!-- ================================================================ -->
+<div class="modal fade" id="patientModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modal-patient-name">Patient Detail</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="modal-body">Loading...</div>
+    </div>
+  </div>
+</div>
+
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// =====================================================================
+// State
+// =====================================================================
+let statsData = {};
+let allPatients = [];
+let currentPage = 1;
+let patientModal;
+
+// =====================================================================
+// Init
+// =====================================================================
+document.addEventListener('DOMContentLoaded', () => {
+  patientModal = new bootstrap.Modal(document.getElementById('patientModal'));
+  document.getElementById('current-date').textContent = new Date().toLocaleDateString('en-GB', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+  });
+  document.getElementById('last-updated').textContent = new Date().toLocaleTimeString();
+  loadAll();
+});
+
+function loadAll() {
+  loadStats();
+  loadRecentPatients();
+}
+
+// =====================================================================
+// Navigation
+// =====================================================================
+function showView(view) {
+  document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.sidebar-nav .nav-link').forEach(el => el.classList.remove('active'));
+  document.getElementById(`view-${view}`).classList.add('active');
+
+  const navLinks = { dashboard: 0, patients: 1, pregnant: 2, children: 3, chws: 4, setup: 5 };
+  const links = document.querySelectorAll('.sidebar-nav .nav-link');
+  if (navLinks[view] !== undefined) links[navLinks[view]].classList.add('active');
+
+  // Lazy load views
+  if (view === 'patients') { loadDistrictFilter(); loadAllPatients(1); }
+  if (view === 'pregnant') loadPregnant();
+  if (view === 'children') loadChildren();
+  if (view === 'chws') loadCHWs();
+}
+
+// =====================================================================
+// Stats & Charts
+// =====================================================================
+async function loadStats() {
+  try {
+    const res = await fetch('/api/stats');
+    statsData = await res.json();
+    renderStats(statsData);
+    renderCharts(statsData);
+    document.getElementById('last-updated').textContent = new Date().toLocaleTimeString();
+  } catch(e) { console.error('Stats load error:', e); }
+}
+
+function renderStats(d) {
+  const s = d.summary;
+  document.getElementById('stat-chws').textContent = s.total_chws;
+  document.getElementById('stat-patients').textContent = s.total_patients;
+  document.getElementById('stat-pregnant').textContent = s.total_pregnant;
+  document.getElementById('stat-cu2').textContent = s.total_cu2;
+  document.getElementById('stat-week').textContent = s.screenings_this_week;
+  document.getElementById('stat-referred').textContent = s.total_referred;
+}
+
+let charts = {};
+function renderCharts(d) {
+  // Trend
+  const trendCtx = document.getElementById('chart-trend').getContext('2d');
+  if (charts.trend) charts.trend.destroy();
+  charts.trend = new Chart(trendCtx, {
+    type: 'bar',
+    data: {
+      labels: d.monthly_trend.map(m => m.month),
+      datasets: [
+        { label: 'Pregnant', data: d.monthly_trend.map(m => m.pregnant),
+          backgroundColor: '#c4b5fd', borderRadius: 6 },
+        { label: 'Children', data: d.monthly_trend.map(m => m.children),
+          backgroundColor: '#86efac', borderRadius: 6 },
+      ]
+    },
+    options: { responsive: true, plugins: { legend: { position: 'top' } },
+      scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+  });
+
+  // Overall status (combined)
+  const ps = d.pregnant_status || {}; const cs = d.child_status || {};
+  const combined = {};
+  ['normal','at_risk','referred'].forEach(k => {
+    combined[k] = (ps[k] || 0) + (cs[k] || 0);
+  });
+  const overallCtx = document.getElementById('chart-overall-status').getContext('2d');
+  if (charts.overall) charts.overall.destroy();
+  charts.overall = new Chart(overallCtx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Normal', 'At Risk', 'Referred'],
+      datasets: [{ data: [combined.normal||0, combined.at_risk||0, combined.referred||0],
+        backgroundColor: ['#86efac','#fde68a','#fca5a5'], borderWidth: 2 }]
+    },
+    options: { responsive: true, plugins: { legend: { position: 'bottom' } }, cutout: '65%' }
+  });
+
+  // MUAC
+  const mb = d.muac_breakdown || {};
+  const muacCtx = document.getElementById('chart-muac').getContext('2d');
+  if (charts.muac) charts.muac.destroy();
+  charts.muac = new Chart(muacCtx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Normal (≥23.5cm)', 'KEK (21–23.4cm)', 'KEK Berat (<21cm)'],
+      datasets: [{ data: [mb.normal||0, mb.kek||0, mb.kek_berat||0],
+        backgroundColor: ['#86efac','#fde68a','#fca5a5'], borderWidth: 2 }]
+    },
+    options: { responsive: true, plugins: { legend: { position: 'bottom' } }, cutout: '65%' }
+  });
+
+  // Weight
+  const wb = d.weight_breakdown || {};
+  const wCtx = document.getElementById('chart-weight').getContext('2d');
+  if (charts.weight) charts.weight.destroy();
+  charts.weight = new Chart(wCtx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Normal', 'Underweight', 'Severely UW'],
+      datasets: [{ data: [wb.normal||0, wb.underweight||0, wb.severely_underweight||0],
+        backgroundColor: ['#86efac','#fde68a','#fca5a5'], borderWidth: 2 }]
+    },
+    options: { responsive: true, plugins: { legend: { position: 'bottom' } }, cutout: '65%' }
+  });
+
+  // Height
+  const hb = d.height_breakdown || {};
+  const hCtx = document.getElementById('chart-height').getContext('2d');
+  if (charts.height) charts.height.destroy();
+  charts.height = new Chart(hCtx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Normal', 'Stunted', 'Sev. Stunted'],
+      datasets: [{ data: [hb.normal||0, hb.stunted||0, hb.severely_stunted||0],
+        backgroundColor: ['#86efac','#fde68a','#fca5a5'], borderWidth: 2 }]
+    },
+    options: { responsive: true, plugins: { legend: { position: 'bottom' } }, cutout: '65%' }
+  });
+}
+
+// =====================================================================
+// Recent patients (dashboard)
+// =====================================================================
+async function loadRecentPatients() {
+  try {
+    const res = await fetch('/api/patients?per_page=8');
+    const data = await res.json();
+    const tbody = document.getElementById('recent-patients-body');
+    if (!data.patients.length) {
+      tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No patients yet. CHWs need to register and add patients via WhatsApp.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.patients.map(p => `
+      <tr onclick="openPatientModal(${p.id})" title="Click to view details">
+        <td><strong>${esc(p.name)}</strong></td>
+        <td>${p.patient_type === 'pregnant' ? '🤰 Pregnant' : '👶 Child U2'}</td>
+        <td>${esc(p.chw ? p.chw.name : '—')}</td>
+        <td>${statusBadge(p.screening.overall_status)}</td>
+        <td class="text-muted">${fmtDate(p.created_at)}</td>
+      </tr>
+    `).join('');
+  } catch(e) { console.error(e); }
+}
+
+// =====================================================================
+// All patients view
+// =====================================================================
+async function loadAllPatients(page = 1) {
+  currentPage = page;
+  const search = document.getElementById('search-input')?.value || '';
+  const type = document.getElementById('filter-type')?.value || '';
+  const status = document.getElementById('filter-status')?.value || '';
+  const district = document.getElementById('filter-district')?.value || '';
+  let url = `/api/patients?page=${page}&per_page=20`;
+  if (search) url += `&search=${encodeURIComponent(search)}`;
+  if (type) url += `&patient_type=${type}`;
+  if (status) url += `&status=${status}`;
+  if (district) url += `&district=${encodeURIComponent(district)}`;
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+    const tbody = document.getElementById('patients-body');
+    if (!data.patients.length) {
+      tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">Tidak ada pasien ditemukan.</td></tr>';
+    } else {
+      tbody.innerHTML = data.patients.map((p, i) => {
+        const s = p.screening;
+        let measure = '—';
+        if (p.patient_type === 'pregnant') {
+          measure = s.muac_cm ? `LiLA: ${s.muac_cm}cm` : '—';
+        } else {
+          measure = (s.waz !== undefined && s.haz !== undefined)
+            ? `WAZ: ${s.waz ?? '?'} | HAZ: ${s.haz ?? '?'}` : '—';
+        }
+        const chwLocation = [p.chw.village, p.chw.district].filter(Boolean).join(', ');
+        return `<tr onclick="openPatientModal(${p.id})" title="Lihat detail">
+          <td class="text-muted">${(page-1)*20 + i + 1}</td>
+          <td><strong>${esc(p.name)}</strong></td>
+          <td>${p.patient_type === 'pregnant' ? '🤰 Ibu Hamil' : '👶 Anak Bawah 2 Tahun'}</td>
+          <td>
+            <div>${esc(p.chw.name)}</div>
+            ${chwLocation ? `<div class="text-muted" style="font-size:0.78rem">📍 ${esc(chwLocation)}</div>` : ''}
+          </td>
+          <td style="font-family:monospace;font-size:0.82rem">${measure}</td>
+          <td>${statusBadge(s.overall_status)}</td>
+          <td class="text-muted">${fmtDate(p.created_at)}</td>
+        </tr>`;
+      }).join('');
+    }
+    document.getElementById('patients-count').textContent =
+      `Showing ${data.patients.length} of ${data.total} patients`;
+    renderPagination(data.total, page, 20);
+  } catch(e) { console.error(e); }
+}
+
+function filterPatients() { loadAllPatients(1); }
+
+async function loadDistrictFilter() {
+  try {
+    const res = await fetch('/api/districts');
+    const districts = await res.json();
+    const sel = document.getElementById('filter-district');
+    if (!sel) return;
+    // Clear existing options except the first "All" option
+    while (sel.options.length > 1) sel.remove(1);
+    districts.forEach(d => {
+      const opt = document.createElement('option');
+      opt.value = d;
+      opt.textContent = d;
+      sel.appendChild(opt);
+    });
+  } catch(e) { console.error(e); }
+}
+
+function renderPagination(total, page, perPage) {
+  const pages = Math.ceil(total / perPage);
+  const el = document.getElementById('pagination');
+  if (pages <= 1) { el.innerHTML = ''; return; }
+  let html = '';
+  for (let i = 1; i <= pages; i++) {
+    html += `<button class="btn btn-sm ${i===page ? 'btn-primary' : 'btn-outline-secondary'}"
+      onclick="loadAllPatients(${i})" style="border-radius:6px;min-width:36px">${i}</button>`;
+  }
+  el.innerHTML = html;
+}
+
+// =====================================================================
+// Pregnant view
+// =====================================================================
+async function loadPregnant() {
+  try {
+    const res = await fetch('/api/patients?patient_type=pregnant&per_page=100');
+    const data = await res.json();
+    const tbody = document.getElementById('pregnant-body');
+    if (!data.patients.length) {
+      tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">No pregnant mothers screened yet.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.patients.map(p => {
+      const s = p.screening;
+      const chwLoc = [p.chw?.village, p.chw?.district].filter(Boolean).join(', ');
+      return `<tr onclick="openPatientModal(${p.id})">
+        <td><strong>${esc(p.name)}</strong></td>
+        <td>
+          <div>${esc(p.chw ? p.chw.name : '—')}</div>
+          ${chwLoc ? `<div class="text-muted" style="font-size:0.78rem">📍 ${esc(chwLoc)}</div>` : ''}
+        </td>
+        <td>${s.muac_cm ?? '—'}</td>
+        <td>${statusTag(s.muac_status)}</td>
+        <td>${statusTag(s.anemia_status)}</td>
+        <td>${statusBadge(s.overall_status)}</td>
+        <td>${s.needs_referral ? '<span class="badge bg-danger">YA</span>' : '<span class="badge bg-success">Tidak</span>'}</td>
+        <td class="text-muted">${fmtDate(p.created_at)}</td>
+      </tr>`;
+    }).join('');
+  } catch(e) { console.error(e); }
+}
+
+// =====================================================================
+// Children view
+// =====================================================================
+async function loadChildren() {
+  try {
+    const res = await fetch('/api/patients?patient_type=cu2&per_page=100');
+    const data = await res.json();
+    const tbody = document.getElementById('children-body');
+    if (!data.patients.length) {
+      tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted py-4">No children screened yet.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.patients.map(p => {
+      const s = p.screening;
+      const zStyle = z => {
+        if (!z) return '';
+        return z < -3 ? 'color:#dc2626;font-weight:700' : z < -2 ? 'color:#d97706;font-weight:600' : 'color:#16a34a';
+      };
+      const chwLocC = [p.chw?.village, p.chw?.district].filter(Boolean).join(', ');
+      return `<tr onclick="openPatientModal(${p.id})">
+        <td><strong>${esc(p.name)}</strong></td>
+        <td>
+          <div>${esc(p.chw ? p.chw.name : '—')}</div>
+          ${chwLocC ? `<div class="text-muted" style="font-size:0.78rem">📍 ${esc(chwLocC)}</div>` : ''}
+        </td>
+        <td>${s.age_months ?? '—'}</td>
+        <td>${s.sex === 'M' ? '♂ Laki-laki' : s.sex === 'F' ? '♀ Perempuan' : '—'}</td>
+        <td>${s.weight_kg ?? '—'}</td>
+        <td style="${zStyle(s.waz)}">${s.waz ?? '—'}</td>
+        <td>${s.height_cm ?? '—'}</td>
+        <td style="${zStyle(s.haz)}">${s.haz ?? '—'}</td>
+        <td>${statusBadge(s.overall_status)}</td>
+        <td>${s.needs_referral ? '<span class="badge bg-danger">YA</span>' : '<span class="badge bg-success">Tidak</span>'}</td>
+      </tr>`;
+    }).join('');
+  } catch(e) { console.error(e); }
+}
+
+// =====================================================================
+// CHWs view
+// =====================================================================
+async function loadCHWs() {
+  try {
+    const res = await fetch('/api/chws');
+    const chws = await res.json();
+    const el = document.getElementById('chw-cards');
+    if (!chws.length) {
+      el.innerHTML = '<div class="col-12 text-center text-muted py-4">Belum ada kader terdaftar.</div>';
+      return;
+    }
+
+    // Group by district
+    const grouped = {};
+    chws.forEach(c => {
+      const district = c.district || 'Kecamatan Tidak Diketahui';
+      if (!grouped[district]) grouped[district] = [];
+      grouped[district].push(c);
+    });
+
+    let html = '';
+    Object.keys(grouped).sort().forEach(district => {
+      const members = grouped[district];
+      const totalPatients = members.reduce((sum, c) => sum + c.patient_count, 0);
+      html += `
+        <div class="col-12 mt-3 mb-1">
+          <div style="display:flex;align-items:center;gap:0.75rem;">
+            <h6 class="mb-0 fw-bold" style="color:var(--primary)">
+              <i class="bi bi-geo-alt-fill me-1"></i>${esc(district)}
+            </h6>
+            <span class="badge" style="background:var(--primary-light);color:var(--primary);font-size:0.75rem">
+              ${members.length} kader · ${totalPatients} pasien
+            </span>
+          </div>
+          <hr class="mt-1 mb-2" style="border-color:#d1fae5">
+        </div>`;
+      members.forEach(c => {
+        html += `
+        <div class="col-md-4 col-lg-3">
+          <div class="stat-card flex-column align-items-start p-3" style="gap:0.5rem">
+            <div style="display:flex;gap:0.75rem;align-items:center">
+              <div class="stat-icon green" style="width:44px;height:44px"><i class="bi bi-person-badge"></i></div>
+              <div>
+                <div class="fw-bold" style="font-size:0.95rem">${esc(c.name)}</div>
+                ${c.village ? `<div class="text-muted" style="font-size:0.78rem">🏘️ ${esc(c.village)}</div>` : ''}
+              </div>
+            </div>
+            <div style="font-size:0.82rem;color:#374151">
+              <span class="badge" style="background:#dbeafe;color:#1d4ed8">${c.patient_count} pasien</span>
+            </div>
+            <div class="text-muted" style="font-size:0.75rem">Terdaftar ${fmtDate(c.created_at)}</div>
+          </div>
+        </div>`;
+      });
+    });
+    el.innerHTML = html;
+  } catch(e) { console.error(e); }
+}
+
+// =====================================================================
+// Patient detail modal
+// =====================================================================
+async function openPatientModal(id) {
+  document.getElementById('modal-body').innerHTML = '<div class="text-center py-4">Loading...</div>';
+  patientModal.show();
+  try {
+    const res = await fetch(`/api/patient/${id}`);
+    const p = await res.json();
+    document.getElementById('modal-patient-name').innerHTML =
+      `${p.patient_type === 'pregnant' ? '🤰' : '👶'} ${esc(p.name)}
+      <a href="/hasil/${p.id}" target="_blank"
+        style="font-size:0.78rem;font-weight:400;opacity:0.85;margin-left:0.75rem;
+               background:rgba(255,255,255,0.2);padding:0.2rem 0.6rem;border-radius:20px;
+               color:white;text-decoration:none;white-space:nowrap;">
+        📋 Lihat Grafik ↗
+      </a>`;
+
+    let html = `
+      <div class="row mb-3">
+        <div class="col-6">
+          <div class="detail-label">Patient Type</div>
+          <div>${p.patient_type === 'pregnant' ? 'Pregnant Mother' : 'Child Under 2'}</div>
+        </div>
+        <div class="col-6">
+          <div class="detail-label">Registered</div>
+          <div>${fmtDate(p.created_at)}</div>
+        </div>
+        <div class="col-6 mt-2">
+          <div class="detail-label">Health Worker</div>
+          <div>${esc(p.chw.name)}</div>
+          ${[p.chw.village, p.chw.district].filter(Boolean).length ? `<div class="text-muted" style="font-size:0.82rem">📍 ${esc([p.chw.village, p.chw.district].filter(Boolean).join(', '))}</div>` : ''}
+        </div>
+        <div class="col-6 mt-2">
+          <div class="detail-label">Screenings</div>
+          <div>${p.screenings.length}</div>
+        </div>
+      </div>
+      <hr>
+    `;
+
+    if (!p.screenings.length) {
+      html += '<p class="text-muted">No screenings recorded yet.</p>';
+    } else {
+      p.screenings.forEach((s, i) => {
+        html += `<h6 class="fw-bold mt-3">Screening ${i + 1} — ${fmtDate(s.screened_at)}</h6>`;
+        html += `<div class="mb-2">${statusBadge(s.overall_status)}
+          ${s.needs_referral ? ' <span class="badge bg-danger ms-1">REFERRAL NEEDED</span>' : ''}
+        </div>`;
+
+        if (s.type === 'pregnant') {
+          const months = s.weeks_pregnant ? Math.round(s.weeks_pregnant / 4) : '—';
+          html += `<div class="row g-2 mb-2">
+            <div class="col-6"><div class="detail-label">Usia Ibu</div><div>${s.mother_age ?? '—'} tahun</div></div>
+            <div class="col-6"><div class="detail-label">Usia Kehamilan</div><div>Bulan ke-${months}</div></div>
+            <div class="col-6"><div class="detail-label">LiLA/MUAC</div><div>${s.muac_cm ?? '—'} cm — ${statusTag(s.muac_status)}</div></div>
+            <div class="col-6"><div class="detail-label">Anemia</div><div>${statusTag(s.anemia_status)}</div></div>
+            ${s.hb_gdl ? `<div class="col-6"><div class="detail-label">Hemoglobin</div><div>${s.hb_gdl} g/dL</div></div>` : ''}
+            <div class="col-6"><div class="detail-label">Tekanan Darah</div><div>${s.systolic_bp && s.diastolic_bp ? `${s.systolic_bp}/${s.diastolic_bp} mmHg — ${statusTag(s.bp_status)}` : statusTag(s.bp_status || 'skipped')}</div></div>
+          </div>`;
+        } else {
+          html += `<div class="row g-2 mb-2">
+            <div class="col-6"><div class="detail-label">Age</div><div>${s.age_months ?? '—'} months</div></div>
+            <div class="col-6"><div class="detail-label">Sex</div><div>${s.sex === 'M' ? '♂ Boy' : '♀ Girl'}</div></div>
+            <div class="col-6"><div class="detail-label">Weight</div><div>${s.weight_kg ?? '—'} kg (WAZ: ${s.waz ?? '—'})</div></div>
+            <div class="col-6"><div class="detail-label">Height</div><div>${s.height_cm ?? '—'} cm (HAZ: ${s.haz ?? '—'})</div></div>
+            <div class="col-6"><div class="detail-label">Weight Status</div><div>${statusTag(s.weight_status)}</div></div>
+            <div class="col-6"><div class="detail-label">Height Status</div><div>${statusTag(s.height_status)}</div></div>
+          </div>`;
+        }
+
+        if (s.education_message) {
+          const eduParts = s.education_message.split('|||').map(p => p.trim()).filter(Boolean);
+          html += `<div class="detail-label mb-1">Pesan Edukasi</div>`;
+          html += `<div class="edu-message mb-2">${esc(eduParts[0])}</div>`;
+        }
+        if (s.referral_message) {
+          html += `<div class="detail-label mb-1">Pesan Rujukan</div>
+            <div class="ref-message mb-2">${esc(s.referral_message)}</div>`;
+        }
+        if (i < p.screenings.length - 1) html += '<hr>';
+      });
+    }
+
+    document.getElementById('modal-body').innerHTML = html;
+  } catch(e) {
+    document.getElementById('modal-body').innerHTML = '<p class="text-danger">Failed to load patient data.</p>';
+  }
+}
+
+// =====================================================================
+// Utilities
+// =====================================================================
+function statusBadge(status) {
+  const map = {
+    normal: ['badge-normal', '✅ Normal'],
+    at_risk: ['badge-at_risk', '⚠️ At Risk'],
+    referred: ['badge-referred', '🚨 Referred'],
+    not_screened: ['badge-not_screened', '— Not Screened'],
+  };
+  const [cls, label] = map[status] || ['badge-not_screened', status];
+  return `<span class="status-badge ${cls}">${label}</span>`;
+}
+
+function statusTag(status) {
+  const labels = {
+    normal: '<span style="color:#15803d">Normal</span>',
+    kek: '<span style="color:#92400e">KEK</span>',
+    kek_berat: '<span style="color:#991b1b;font-weight:700">KEK Berat</span>',
+    mam: '<span style="color:#92400e">KEK</span>',
+    sam: '<span style="color:#991b1b;font-weight:700">KEK Berat</span>',
+    hypertension: '<span style="color:#991b1b;font-weight:700">Hipertensi</span>',
+    moderate: '<span style="color:#92400e">Anemia Sedang</span>',
+    severe: '<span style="color:#991b1b;font-weight:700">Anemia Berat</span>',
+    underweight: '<span style="color:#92400e">Berat Kurang</span>',
+    severely_underweight: '<span style="color:#991b1b;font-weight:700">Gizi Buruk</span>',
+    stunted: '<span style="color:#92400e">Stunting</span>',
+    severely_stunted: '<span style="color:#991b1b;font-weight:700">Stunting Berat</span>',
+    skipped: '<span style="color:#6b7280">Tidak Diukur</span>',
+    unknown: '<span style="color:#6b7280">—</span>',
+  };
+  return labels[status] || `<span>${status || '—'}</span>`;
+}
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function esc(str) {
+  if (!str) return '';
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
+</body>
+</html>

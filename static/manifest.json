@@ -1,0 +1,25 @@
+{
+  "name": "Kader Posyandu",
+  "short_name": "Posyandu",
+  "description": "Aplikasi Skrining Ibu Hamil & Anak Bawah 2 Tahun untuk Kader Posyandu",
+  "start_url": "/app",
+  "display": "standalone",
+  "background_color": "#1a6e4a",
+  "theme_color": "#1a6e4a",
+  "orientation": "portrait-primary",
+  "lang": "id",
+  "icons": [
+    {
+      "src": "/static/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/static/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

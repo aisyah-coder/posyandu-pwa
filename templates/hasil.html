@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hasil Skrining Posyandu</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --primary: #1a6e4a;
+      --primary-light: #e8f5ee;
+      --danger: #dc2626;
+      --warning: #d97706;
+      --success: #16a34a;
+      --neutral: #6b7280;
+      --bg: #f0f4f8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      font-family: 'Segoe UI', sans-serif;
+      color: #1f2937;
+      padding-bottom: 2rem;
+    }
+
+    /* Header */
+    .header {
+      background: var(--primary);
+      color: white;
+      padding: 1.25rem 1rem 1rem;
+    }
+    .header-brand {
+      font-size: 0.75rem;
+      opacity: 0.7;
+      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .header h2 { font-size: 1.3rem; font-weight: 700; margin-bottom: 0.25rem; }
+    .header .meta { font-size: 0.82rem; opacity: 0.85; }
+    .status-chip {
+      display: inline-block;
+      margin-top: 0.6rem;
+      padding: 0.3rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    .chip-normal   { background: #dcfce7; color: #15803d; }
+    .chip-at_risk  { background: #fef3c7; color: #92400e; }
+    .chip-referred { background: #fee2e2; color: #991b1b; }
+
+    /* Cards */
+    .card {
+      background: white;
+      border-radius: 14px;
+      padding: 1.25rem;
+      margin: 1rem 0.75rem 0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+    }
+    .card-title {
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--neutral);
+      margin-bottom: 0.75rem;
+      font-weight: 600;
+    }
+
+    /* Visit timeline */
+    .visit-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.6rem 0;
+      border-bottom: 1px solid #f3f4f6;
+      font-size: 0.88rem;
+    }
+    .visit-item:last-child { border-bottom: none; }
+    .visit-date { color: var(--neutral); font-size: 0.78rem; }
+
+    /* Chart wrapper */
+    .chart-wrap { position: relative; height: 180px; margin-top: 0.5rem; }
+
+    /* Education message */
+    .edu-box {
+      background: #f0fdf4;
+      border-left: 3px solid var(--success);
+      padding: 0.75rem 1rem;
+      border-radius: 0 8px 8px 0;
+      font-size: 0.9rem;
+      white-space: pre-wrap;
+      line-height: 1.6;
+      margin-bottom: 0.75rem;
+    }
+    .warn-box {
+      background: #fef2f2;
+      border-left: 3px solid var(--danger);
+      padding: 0.75rem 1rem;
+      border-radius: 0 8px 8px 0;
+      font-size: 0.9rem;
+      white-space: pre-wrap;
+      line-height: 1.6;
+    }
+
+    /* Referral banner */
+    .referral-banner {
+      background: #fef2f2;
+      border: 1px solid #fca5a5;
+      border-radius: 10px;
+      padding: 0.9rem 1rem;
+      display: flex;
+      gap: 0.75rem;
+      align-items: flex-start;
+      margin: 1rem 0.75rem 0;
+    }
+    .referral-banner .icon { font-size: 1.4rem; flex-shrink: 0; }
+    .referral-banner .text { font-size: 0.88rem; color: #991b1b; }
+    .referral-banner strong { display: block; margin-bottom: 0.2rem; }
+
+    /* Stat row */
+    .stat-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.6rem;
+      margin-bottom: 0.5rem;
+    }
+    .stat-box {
+      background: #f9fafb;
+      border-radius: 10px;
+      padding: 0.6rem 0.75rem;
+    }
+    .stat-label { font-size: 0.72rem; color: var(--neutral); text-transform: uppercase; letter-spacing: 0.04em; }
+    .stat-value { font-size: 1rem; font-weight: 700; color: #111827; }
+    .stat-sub   { font-size: 0.75rem; color: var(--neutral); }
+
+    /* Section divider */
+    .section-label {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--neutral);
+      font-weight: 700;
+      margin: 1.25rem 0.75rem 0;
+    }
+
+    /* Loading state */
+    #loading { text-align: center; padding: 3rem 1rem; color: var(--neutral); }
+    #content { display: none; }
+  </style>
+</head>
+<body>
+
+<div id="loading">
+  <div style="font-size:2rem;margin-bottom:0.5rem">⏳</div>
+  <div>Memuat data pasien...</div>
+</div>
+
+<div id="content">
+  <!-- Header -->
+  <div class="header">
+    <div class="header-brand">🏥 Posyandu — Hasil Skrining</div>
+    <h2 id="h-name">—</h2>
+    <div class="meta" id="h-meta">—</div>
+    <div id="h-status"></div>
+  </div>
+
+  <!-- Referral banner (shown if referred) -->
+  <div class="referral-banner" id="referral-banner" style="display:none">
+    <div class="icon">🚨</div>
+    <div class="text">
+      <strong>Perlu Segera ke Puskesmas</strong>
+      Pasien ini perlu penanganan lebih lanjut dari tenaga kesehatan. Segera bawa ke Puskesmas terdekat.
+    </div>
+  </div>
+
+  <!-- Latest measurements -->
+  <div class="section-label">📊 Pengukuran Terakhir</div>
+  <div class="card" id="latest-stats"></div>
+
+  <!-- Visit history charts -->
+  <div class="section-label">📈 Riwayat Kunjungan</div>
+  <div class="card" id="chart-card-1">
+    <div class="card-title" id="chart-1-title">—</div>
+    <div class="chart-wrap"><canvas id="chart-1"></canvas></div>
+  </div>
+  <div class="card" id="chart-card-2" style="display:none">
+    <div class="card-title" id="chart-2-title">—</div>
+    <div class="chart-wrap"><canvas id="chart-2"></canvas></div>
+  </div>
+  <div class="card" id="chart-card-3" style="display:none">
+    <div class="card-title" id="chart-3-title">—</div>
+    <div class="chart-wrap"><canvas id="chart-3"></canvas></div>
+  </div>
+
+  <!-- Visit list -->
+  <div class="card">
+    <div class="card-title">Semua Kunjungan</div>
+    <div id="visit-list"></div>
+  </div>
+
+  <!-- Education message -->
+  <div class="section-label" id="edu-section-label" style="display:none">📚 Pesan Edukasi (Kunjungan Terakhir)</div>
+  <div class="card" id="edu-card" style="display:none">
+    <div id="edu-content"></div>
+  </div>
+
+</div>
+
+
+<script>
+const patientId = {{ patient_id }};
+let patientData = null;
+
+// ── Utilities ──────────────────────────────────────────────────────────────
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function fmtDate(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+function fmtShort(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+}
+
+// ── Load patient data ──────────────────────────────────────────────────────
+async function load() {
+  try {
+    const res = await fetch(`/api/patient/${patientId}`);
+    if (!res.ok) throw new Error('Not found');
+    patientData = await res.json();
+    render(patientData);
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('content').style.display = 'block';
+  } catch(e) {
+    document.getElementById('loading').innerHTML =
+      '<div style="font-size:2rem">😕</div><div>Pasien tidak ditemukan.</div>';
+  }
+}
+
+// ── Render ─────────────────────────────────────────────────────────────────
+function render(p) {
+  const isPregnant = p.patient_type === 'pregnant';
+  const latest = p.screenings.length ? p.screenings[p.screenings.length - 1] : null;
+  const status = latest?.overall_status || 'not_screened';
+
+  // Header
+  document.getElementById('h-name').textContent = p.name;
+  const loc = [p.chw?.village, p.chw?.district].filter(Boolean).join(', ');
+  document.getElementById('h-meta').textContent =
+    `Kader: ${p.chw?.name || '—'}${loc ? ' · ' + loc : ''} · ${p.screenings.length} kunjungan`;
+
+  const statusLabel = { normal:'✅ Normal', at_risk:'⚠️ Perlu Perhatian', referred:'🚨 Perlu Dirujuk' };
+  const chipClass = { normal:'chip-normal', at_risk:'chip-at_risk', referred:'chip-referred' };
+  document.getElementById('h-status').innerHTML =
+    `<span class="status-chip ${chipClass[status]||''}">${statusLabel[status]||status}</span>`;
+
+  // Referral banner
+  if (latest?.needs_referral) {
+    document.getElementById('referral-banner').style.display = 'flex';
+  }
+
+  // Latest stats
+  renderLatestStats(isPregnant, latest);
+
+  // Charts
+  const dates = p.screenings.map(s => fmtShort(s.screened_at));
+  if (isPregnant) {
+    renderPregnantCharts(p.screenings, dates);
+  } else {
+    renderChildCharts(p.screenings);
+  }
+
+  // Visit list
+  const visitList = document.getElementById('visit-list');
+  if (!p.screenings.length) {
+    visitList.innerHTML = '<div class="visit-item text-muted">Belum ada kunjungan.</div>';
+  } else {
+    visitList.innerHTML = [...p.screenings].reverse().map((s, i) => {
+      const num = p.screenings.length - i;
+      const badge = { normal:'✅', at_risk:'⚠️', referred:'🚨' }[s.overall_status] || '—';
+      const detail = isPregnant
+        ? `LiLA ${s.muac_cm ?? '?'} cm`
+        : `BB ${s.weight_kg ?? '?'} kg · TB ${s.height_cm ?? '?'} cm`;
+      return `<div class="visit-item">
+        <div>
+          <span style="font-weight:600">Kunjungan ${num}</span>
+          <span style="color:var(--neutral);font-size:0.8rem;margin-left:0.5rem">${detail}</span>
+        </div>
+        <div style="text-align:right">
+          <div>${badge}</div>
+          <div class="visit-date">${fmtDate(s.screened_at)}</div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // Education message
+  if (latest?.education_message) {
+    document.getElementById('edu-section-label').style.display = 'block';
+    document.getElementById('edu-card').style.display = 'block';
+    const parts = latest.education_message.split('|||').map(p => p.trim()).filter(Boolean);
+    document.getElementById('edu-content').innerHTML =
+      `<div class="edu-box">${esc(parts[0])}</div>`;
+  }
+}
+
+function renderLatestStats(isPregnant, s) {
+  const el = document.getElementById('latest-stats');
+  if (!s) { el.innerHTML = '<div class="text-muted">Belum ada data.</div>'; return; }
+
+  let html = '<div class="stat-row">';
+  if (isPregnant) {
+    const months = s.weeks_pregnant ? Math.round(s.weeks_pregnant / 4) : '—';
+    const muacColor = s.muac_status === 'normal' ? '#15803d' : s.muac_status === 'kek' ? '#d97706' : '#dc2626';
+    html += statBox('Usia Kehamilan', `Bulan ke-${months}`, '');
+    html += statBox('LiLA / MUAC', `${s.muac_cm ?? '—'} cm`, s.muac_status === 'normal' ? 'Normal' : s.muac_status === 'kek' ? 'KEK' : 'KEK Berat', muacColor);
+    html += '</div><div class="stat-row">';
+    if (s.systolic_bp && s.diastolic_bp) {
+      const bpColor = s.bp_status === 'hypertension' ? '#dc2626' : '#15803d';
+      html += statBox('Tekanan Darah', `${s.systolic_bp}/${s.diastolic_bp}`, 'mmHg', bpColor);
+    } else {
+      html += statBox('Tekanan Darah', '—', 'Tidak diukur');
+    }
+    const anemiaColor = s.anemia_status === 'normal' ? '#15803d' : s.anemia_status === 'moderate' ? '#d97706' : '#dc2626';
+    const anemiaLabel = { normal:'Normal', moderate:'Anemia Sedang', severe:'Anemia Berat' }[s.anemia_status] || s.anemia_status;
+    html += statBox('Anemia', s.hb_gdl ? `${s.hb_gdl} g/dL` : anemiaLabel, s.hb_gdl ? anemiaLabel : '', anemiaColor);
+  } else {
+    const wazColor = !s.waz ? '' : s.waz < -3 ? '#dc2626' : s.waz < -2 ? '#d97706' : '#15803d';
+    const hazColor = !s.haz ? '' : s.haz < -3 ? '#dc2626' : s.haz < -2 ? '#d97706' : '#15803d';
+    html += statBox('Berat Badan', `${s.weight_kg ?? '—'} kg`, `WAZ: ${s.waz ?? '—'}`, wazColor);
+    html += statBox('Tinggi Badan', `${s.height_cm ?? '—'} cm`, `HAZ: ${s.haz ?? '—'}`, hazColor);
+    html += '</div><div class="stat-row">';
+    html += statBox('Usia', `${s.age_months ?? '—'} bulan`, '');
+    html += statBox('Jenis Kelamin', s.sex === 'M' ? '♂ Laki-laki' : '♀ Perempuan', '');
+  }
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function statBox(label, value, sub, valueColor) {
+  return `<div class="stat-box">
+    <div class="stat-label">${label}</div>
+    <div class="stat-value"${valueColor ? ` style="color:${valueColor}"` : ''}>${esc(value)}</div>
+    ${sub ? `<div class="stat-sub">${esc(sub)}</div>` : ''}
+  </div>`;
+}
+
+// ── Charts ─────────────────────────────────────────────────────────────────
+const chartDefaults = {
+  responsive: true, maintainAspectRatio: false,
+  plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } },
+  scales: {
+    x: { ticks: { font: { size: 10 } } },
+    y: { ticks: { font: { size: 10 } } },
+  }
+};
+
+function thresholdLine(label, value, color) {
+  return {
+    label, data: null,
+    borderColor: color, borderDash: [5,3], borderWidth: 1.5,
+    pointRadius: 0, fill: false,
+    _threshold: value,
+  };
+}
+
+function makeChart(canvasId, cfg) {
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  return new Chart(ctx, cfg);
+}
+
+function showCard(cardId, title) {
+  document.getElementById(cardId).style.display = 'block';
+  document.getElementById(cardId.replace('card-', '') + '-title').textContent = title;
+}
+
+function renderPregnantCharts(screenings, dates) {
+  if (screenings.length < 1) return;
+
+  // Chart 1: LiLA
+  const muac = screenings.map(s => s.muac_cm);
+  showCard('chart-card-1', 'LiLA / MUAC (cm)');
+  makeChart('chart-1', {
+    type: 'line',
+    data: {
+      labels: dates,
+      datasets: [
+        {
+          label: 'LiLA (cm)', data: muac,
+          borderColor: '#1a6e4a', backgroundColor: 'rgba(26,110,74,0.1)',
+          fill: true, tension: 0.3, pointRadius: 5, pointBackgroundColor: '#1a6e4a',
+        },
+        {
+          label: 'Batas KEK (23.5 cm)', data: dates.map(() => 23.5),
+          borderColor: '#dc2626', borderDash: [5,3], borderWidth: 1.5,
+          pointRadius: 0, fill: false,
+        },
+      ]
+    },
+    options: { ...chartDefaults }
+  });
+
+  // Chart 2: Blood pressure (only if at least one visit has BP)
+  const hasBP = screenings.some(s => s.systolic_bp);
+  if (hasBP) {
+    const systolic  = screenings.map(s => s.systolic_bp  || null);
+    const diastolic = screenings.map(s => s.diastolic_bp || null);
+    showCard('chart-card-2', 'Tekanan Darah (mmHg)');
+    makeChart('chart-2', {
+      type: 'line',
+      data: {
+        labels: dates,
+        datasets: [
+          {
+            label: 'Sistolik', data: systolic,
+            borderColor: '#dc2626', backgroundColor: 'rgba(220,38,38,0.08)',
+            fill: false, tension: 0.3, pointRadius: 5, pointBackgroundColor: '#dc2626',
+          },
+          {
+            label: 'Diastolik', data: diastolic,
+            borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.08)',
+            fill: false, tension: 0.3, pointRadius: 5, pointBackgroundColor: '#f59e0b',
+          },
+          {
+            label: 'Batas Sistolik (140)', data: dates.map(() => 140),
+            borderColor: '#dc2626', borderDash: [5,3], borderWidth: 1, pointRadius: 0, fill: false,
+          },
+          {
+            label: 'Batas Diastolik (90)', data: dates.map(() => 90),
+            borderColor: '#f59e0b', borderDash: [5,3], borderWidth: 1, pointRadius: 0, fill: false,
+          },
+        ]
+      },
+      options: { ...chartDefaults }
+    });
+  }
+
+  // Chart 3: Hemoglobin (if measured)
+  const hasHb = screenings.some(s => s.hb_gdl);
+  if (hasHb) {
+    const hb = screenings.map(s => s.hb_gdl || null);
+    showCard('chart-card-3', 'Hemoglobin (g/dL)');
+    makeChart('chart-3', {
+      type: 'line',
+      data: {
+        labels: dates,
+        datasets: [
+          {
+            label: 'Hb (g/dL)', data: hb,
+            borderColor: '#7c3aed', backgroundColor: 'rgba(124,58,237,0.08)',
+            fill: true, tension: 0.3, pointRadius: 5, pointBackgroundColor: '#7c3aed',
+          },
+          {
+            label: 'Batas Anemia (11 g/dL)', data: dates.map(() => 11),
+            borderColor: '#dc2626', borderDash: [5,3], borderWidth: 1.5,
+            pointRadius: 0, fill: false,
+          },
+        ]
+      },
+      options: { ...chartDefaults }
+    });
+  }
+}
+
+async function renderChildCharts(screenings) {
+  if (screenings.length < 1) return;
+
+  const sex = screenings[screenings.length - 1]?.sex || 'M';
+  let ref = null;
+  try {
+    const r = await fetch(`/api/who-reference?sex=${sex}`);
+    ref = await r.json();
+  } catch(e) { console.error('WHO ref fetch failed', e); }
+
+  const whoAges = ref ? ref.weight.ages : [];
+  const allAges = Array.from({length: 25}, (_, i) => i);
+  const xLabels = allAges.map(a => `${a} bln`);
+
+  // Map patient visits to age-based scatter points
+  const weightPoints = screenings.map(s => ({ x: s.age_months, y: s.weight_kg }));
+  const heightPoints = screenings.map(s => ({ x: s.age_months, y: s.height_cm }));
+
+  const refLine = (label, data, color, dash = []) => ({
+    label, data,
+    borderColor: color, borderWidth: 1.5,
+    borderDash: dash.length ? dash : [],
+    pointRadius: 0, fill: false, tension: 0.3,
+    showLine: true,
+  });
+
+  const scatterOpts = {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 12 } } },
+    scales: {
+      x: { type: 'linear', min: 0, max: 24, ticks: { font: { size: 10 }, stepSize: 3,
+        callback: v => `${v} bln` } },
+      y: { ticks: { font: { size: 10 } } },
+    }
+  };
+
+  // Chart 1: Weight-for-age with WHO curves
+  showCard('chart-card-1', `Berat Badan — Kurva WHO (${sex === 'M' ? 'Laki-laki' : 'Perempuan'})`);
+  const weightDatasets = [];
+  if (ref) {
+    weightDatasets.push(refLine('Median (0 SD)', allAges.map((a,i) => ({x:a, y:ref.weight.median[i]})), '#16a34a'));
+    weightDatasets.push(refLine('-1 SD', allAges.map((a,i) => ({x:a, y:ref.weight.minus1[i]})), '#f59e0b', [4,3]));
+    weightDatasets.push(refLine('-2 SD', allAges.map((a,i) => ({x:a, y:ref.weight.minus2[i]})), '#f97316', [4,3]));
+    weightDatasets.push(refLine('-3 SD', allAges.map((a,i) => ({x:a, y:ref.weight.minus3[i]})), '#dc2626', [4,3]));
+  }
+  weightDatasets.push({
+    label: 'Berat anak', data: weightPoints,
+    borderColor: '#1a6e4a', backgroundColor: '#1a6e4a',
+    showLine: true, tension: 0.3,
+    pointRadius: 6, pointBackgroundColor: '#1a6e4a', fill: false,
+  });
+  makeChart('chart-1', { type: 'scatter', data: { datasets: weightDatasets }, options: { ...scatterOpts, scales: { ...scatterOpts.scales, y: { ...scatterOpts.scales.y, title: { display: true, text: 'kg', font: { size: 10 } } } } } });
+
+  // Chart 2: Height-for-age with WHO curves
+  showCard('chart-card-2', `Tinggi Badan — Kurva WHO (${sex === 'M' ? 'Laki-laki' : 'Perempuan'})`);
+  const heightDatasets = [];
+  if (ref) {
+    heightDatasets.push(refLine('Median (0 SD)', allAges.map((a,i) => ({x:a, y:ref.height.median[i]})), '#16a34a'));
+    heightDatasets.push(refLine('-1 SD', allAges.map((a,i) => ({x:a, y:ref.height.minus1[i]})), '#f59e0b', [4,3]));
+    heightDatasets.push(refLine('-2 SD', allAges.map((a,i) => ({x:a, y:ref.height.minus2[i]})), '#f97316', [4,3]));
+    heightDatasets.push(refLine('-3 SD', allAges.map((a,i) => ({x:a, y:ref.height.minus3[i]})), '#dc2626', [4,3]));
+  }
+  heightDatasets.push({
+    label: 'Tinggi anak', data: heightPoints,
+    borderColor: '#2563eb', backgroundColor: '#2563eb',
+    showLine: true, tension: 0.3,
+    pointRadius: 6, pointBackgroundColor: '#2563eb', fill: false,
+  });
+  makeChart('chart-2', { type: 'scatter', data: { datasets: heightDatasets }, options: { ...scatterOpts, scales: { ...scatterOpts.scales, y: { ...scatterOpts.scales.y, title: { display: true, text: 'cm', font: { size: 10 } } } } } });
+
+  // Chart 3: hide (WHO charts above replace z-score chart)
+  document.getElementById('chart-card-3').style.display = 'none';
+}
+
+load();
+</script>
+</body>
+</html>
