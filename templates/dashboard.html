@@ -584,6 +584,10 @@ ngrok http 8000
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="modal-patient-name">Patient Detail</h5>
+        <div class="ms-auto d-flex gap-2 me-2">
+          <button class="btn btn-sm btn-outline-warning" onclick="editPatientName()" id="btn-edit-patient" style="display:none">✏️ Edit Nama</button>
+          <button class="btn btn-sm btn-outline-danger" onclick="deletePatient()" id="btn-delete-patient" style="display:none">🗑️ Hapus Pasien</button>
+        </div>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body" id="modal-body">Loading...</div>
@@ -981,12 +985,21 @@ async function loadCHWs() {
 // =====================================================================
 // Patient detail modal
 // =====================================================================
+let _modalPatientId = null;
+let _modalPatientType = null;
+
 async function openPatientModal(id) {
+  _modalPatientId = id;
   document.getElementById('modal-body').innerHTML = '<div class="text-center py-4">Loading...</div>';
+  document.getElementById('btn-edit-patient').style.display = 'none';
+  document.getElementById('btn-delete-patient').style.display = 'none';
   patientModal.show();
   try {
     const res = await fetch(`/api/patient/${id}`);
     const p = await res.json();
+    _modalPatientType = p.patient_type;
+    document.getElementById('btn-edit-patient').style.display = '';
+    document.getElementById('btn-delete-patient').style.display = '';
     document.getElementById('modal-patient-name').innerHTML =
       `${p.patient_type === 'pregnant' ? '🤰' : '👶'} ${esc(p.name)}
       <a href="/hasil/${p.id}" target="_blank"
@@ -1023,8 +1036,12 @@ async function openPatientModal(id) {
       html += '<p class="text-muted">No screenings recorded yet.</p>';
     } else {
       p.screenings.forEach((s, i) => {
-        html += `<h6 class="fw-bold mt-3">Screening ${i + 1} — ${fmtDate(s.screened_at)}</h6>`;
-        html += `<div class="mb-2">${statusBadge(s.overall_status)}
+        html += `<div class="d-flex align-items-center justify-content-between mt-3">
+          <h6 class="fw-bold mb-0">Screening ${i + 1} — ${fmtDate(s.screened_at)}</h6>
+          <button class="btn btn-sm btn-outline-danger py-0" style="font-size:0.75rem"
+            onclick="deleteScreening(${s.id},'${s.type}')">🗑️ Hapus</button>
+        </div>`;
+        html += `<div class="mb-2 mt-1">${statusBadge(s.overall_status)}
           ${s.needs_referral ? ' <span class="badge bg-danger ms-1">REFERRAL NEEDED</span>' : ''}
         </div>`;
 
@@ -1065,6 +1082,47 @@ async function openPatientModal(id) {
     document.getElementById('modal-body').innerHTML = html;
   } catch(e) {
     document.getElementById('modal-body').innerHTML = '<p class="text-danger">Failed to load patient data.</p>';
+  }
+}
+
+// =====================================================================
+// Data management — edit & delete
+// =====================================================================
+async function editPatientName() {
+  const newName = prompt('Nama baru pasien:');
+  if (!newName || !newName.trim()) return;
+  const res = await fetch(`/api/patient/${_modalPatientId}`, {
+    method: 'PATCH',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ name: newName.trim() })
+  });
+  if (res.ok) {
+    openPatientModal(_modalPatientId);
+    loadAllPatients(currentPage);
+  } else {
+    alert('Gagal mengubah nama.');
+  }
+}
+
+async function deletePatient() {
+  if (!confirm('Hapus pasien ini beserta semua data skrinning-nya? Tindakan ini tidak dapat dibatalkan.')) return;
+  const res = await fetch(`/api/patient/${_modalPatientId}`, { method: 'DELETE' });
+  if (res.ok) {
+    patientModal.hide();
+    loadAllPatients(currentPage);
+    loadStats();
+  } else {
+    alert('Gagal menghapus pasien.');
+  }
+}
+
+async function deleteScreening(screeningId, screeningType) {
+  if (!confirm('Hapus data skrinning ini?')) return;
+  const res = await fetch(`/api/patient/${_modalPatientId}/screening/${screeningType}/${screeningId}`, { method: 'DELETE' });
+  if (res.ok) {
+    openPatientModal(_modalPatientId);
+  } else {
+    alert('Gagal menghapus skrinning.');
   }
 }
 

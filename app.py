@@ -643,3 +643,47 @@ async def patient_qa(patient_id: int, request: Request, db: Session = Depends(ge
 
     answer = generate_qa_answer(question, patient.patient_type, patient.name)
     return {"answer": answer}
+
+
+# ---------------------------------------------------------------------------
+# Data management — edit & delete
+# ---------------------------------------------------------------------------
+
+@app.patch("/api/patient/{patient_id}")
+async def patch_patient(patient_id: int, request: Request, db: Session = Depends(get_db)):
+    """Edit patient name or type."""
+    body = await request.json()
+    patient = db.query(Patient).filter_by(id=patient_id).first()
+    if not patient:
+        raise HTTPException(404, "Pasien tidak ditemukan")
+    if "name" in body:
+        patient.name = body["name"].strip().title()
+    db.commit()
+    return {"ok": True, "name": patient.name}
+
+
+@app.delete("/api/patient/{patient_id}")
+async def delete_patient(patient_id: int, db: Session = Depends(get_db)):
+    """Delete a patient and all their screenings."""
+    patient = db.query(Patient).filter_by(id=patient_id).first()
+    if not patient:
+        raise HTTPException(404, "Pasien tidak ditemukan")
+    db.query(PregnantScreening).filter_by(patient_id=patient_id).delete()
+    db.query(ChildScreening).filter_by(patient_id=patient_id).delete()
+    db.delete(patient)
+    db.commit()
+    return {"ok": True}
+
+
+@app.delete("/api/patient/{patient_id}/screening/{screening_type}/{screening_id}")
+async def delete_screening(patient_id: int, screening_type: str, screening_id: int, db: Session = Depends(get_db)):
+    """Delete a single screening record."""
+    if screening_type == "pregnant":
+        row = db.query(PregnantScreening).filter_by(id=screening_id, patient_id=patient_id).first()
+    else:
+        row = db.query(ChildScreening).filter_by(id=screening_id, patient_id=patient_id).first()
+    if not row:
+        raise HTTPException(404, "Screening tidak ditemukan")
+    db.delete(row)
+    db.commit()
+    return {"ok": True}
