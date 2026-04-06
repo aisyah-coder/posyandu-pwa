@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin — Posyandu</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
+  <style>
+    :root { --primary: #1a6e4a; --primary-dark: #145a3c; }
+    body { background: #f4f6f9; font-size: 0.9rem; }
+    .sidebar { width: 220px; min-height: 100vh; background: var(--primary-dark); color: #fff; position: fixed; top: 0; left: 0; }
+    .sidebar .brand { padding: 1.25rem 1rem; font-size: 1.1rem; font-weight: 700; border-bottom: 1px solid rgba(255,255,255,0.15); }
+    .sidebar .nav-link { color: rgba(255,255,255,0.75); padding: 0.6rem 1rem; border-radius: 6px; margin: 0.1rem 0.5rem; }
+    .sidebar .nav-link:hover, .sidebar .nav-link.active { background: rgba(255,255,255,0.15); color: #fff; }
+    .main { margin-left: 220px; padding: 1.5rem; }
+    .topbar { background: #fff; border-bottom: 1px solid #e5e7eb; padding: 0.75rem 1.5rem; margin: -1.5rem -1.5rem 1.5rem; display: flex; align-items: center; justify-content: space-between; }
+    .section { display: none; }
+    .section.active { display: block; }
+    .stat-card { background: #fff; border-radius: 10px; padding: 1.25rem; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
+    .stat-card .val { font-size: 2rem; font-weight: 700; color: var(--primary); }
+    .table th { font-size: 0.78rem; text-transform: uppercase; color: #6b7280; font-weight: 600; }
+    .badge-normal { background: #dcfce7; color: #166534; }
+    .badge-at_risk { background: #fef3c7; color: #92400e; }
+    .badge-referred { background: #fee2e2; color: #991b1b; }
+    #login-screen { position: fixed; inset: 0; background: var(--primary-dark); display: flex; align-items: center; justify-content: center; z-index: 9999; }
+    .login-box { background: #fff; border-radius: 14px; padding: 2rem; width: 340px; }
+    .login-box h2 { color: var(--primary); font-weight: 700; }
+    .action-bar { background: #fff; border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+    .bulk-bar { display: none; background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px; padding: 0.6rem 1rem; margin-bottom: 1rem; align-items: center; gap: 0.75rem; }
+    .bulk-bar.show { display: flex; }
+    .table-wrap { background: #fff; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); overflow: hidden; }
+    .table-wrap table { margin: 0; }
+    .clickable { cursor: pointer; }
+    .clickable:hover td { background: #f0fdf4; }
+  </style>
+</head>
+<body>
+
+<!-- Login Screen -->
+<div id="login-screen">
+  <div class="login-box text-center">
+    <div style="font-size:2.5rem">🏥</div>
+    <h2 class="mt-2 mb-1">Posyandu Admin</h2>
+    <p class="text-muted mb-3" style="font-size:0.85rem">Internal team access only</p>
+    <input type="password" id="inp-pw" class="form-control mb-3" placeholder="Password" onkeydown="if(event.key==='Enter')doLogin()" />
+    <button class="btn w-100 text-white" style="background:var(--primary)" onclick="doLogin()">Masuk</button>
+    <div id="login-err" class="text-danger mt-2" style="display:none">Password salah.</div>
+  </div>
+</div>
+
+<!-- Sidebar -->
+<div class="sidebar">
+  <div class="brand">🏥 Posyandu Admin</div>
+  <nav class="nav flex-column mt-2">
+    <a class="nav-link active" onclick="showSection('overview')">📊 Overview</a>
+    <a class="nav-link" onclick="showSection('patients')">👥 Pasien</a>
+    <a class="nav-link" onclick="showSection('kaders')">🧑‍⚕️ Kader</a>
+    <a class="nav-link" onclick="showSection('export')">📥 Export Data</a>
+  </nav>
+  <div style="position:absolute;bottom:1rem;left:0;right:0;padding:0 0.5rem">
+    <a class="nav-link" onclick="doLogout()" style="color:rgba(255,255,255,0.5);font-size:0.82rem">⬅ Logout</a>
+  </div>
+</div>
+
+<!-- Main -->
+<div class="main">
+  <div class="topbar">
+    <span id="topbar-title" style="font-weight:600">Overview</span>
+    <span id="admin-badge" class="badge" style="background:var(--primary)">Admin</span>
+  </div>
+
+  <!-- Overview -->
+  <div id="section-overview" class="section active">
+    <div class="row g-3 mb-4">
+      <div class="col-6 col-md-3"><div class="stat-card"><div class="val" id="s-patients">—</div><div class="text-muted">Total Pasien</div></div></div>
+      <div class="col-6 col-md-3"><div class="stat-card"><div class="val" id="s-kaders">—</div><div class="text-muted">Total Kader</div></div></div>
+      <div class="col-6 col-md-3"><div class="stat-card"><div class="val" id="s-referred">—</div><div class="text-muted">Perlu Rujukan</div></div></div>
+      <div class="col-6 col-md-3"><div class="stat-card"><div class="val" id="s-week">—</div><div class="text-muted">Skrining Minggu Ini</div></div></div>
+    </div>
+    <div class="row g-3">
+      <div class="col-md-6">
+        <div class="stat-card">
+          <h6 class="fw-bold mb-3">Pasien Terbaru</h6>
+          <table class="table table-sm table-hover mb-0"><tbody id="overview-recent"></tbody></table>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="stat-card">
+          <h6 class="fw-bold mb-3">Kader Aktif</h6>
+          <table class="table table-sm mb-0"><tbody id="overview-kaders"></tbody></table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Patients -->
+  <div id="section-patients" class="section">
+    <div class="action-bar">
+      <input type="text" id="pt-search" class="form-control form-control-sm" style="width:220px" placeholder="Cari nama pasien..." oninput="loadPatients(1)" />
+      <select id="pt-type" class="form-select form-select-sm" style="width:160px" onchange="loadPatients(1)">
+        <option value="">Semua Tipe</option>
+        <option value="pregnant">Ibu Hamil</option>
+        <option value="cu2">Anak &lt; 2 Thn</option>
+      </select>
+      <select id="pt-status" class="form-select form-select-sm" style="width:160px" onchange="loadPatients(1)">
+        <option value="">Semua Status</option>
+        <option value="normal">Normal</option>
+        <option value="at_risk">Berisiko</option>
+        <option value="referred">Dirujuk</option>
+      </select>
+    </div>
+    <div class="bulk-bar" id="bulk-bar">
+      <span id="bulk-count">0 dipilih</span>
+      <button class="btn btn-sm btn-danger" onclick="bulkDelete()">🗑️ Hapus yang Dipilih</button>
+      <button class="btn btn-sm btn-outline-secondary" onclick="clearSelection()">Batal</button>
+    </div>
+    <div class="table-wrap">
+      <table class="table table-hover align-middle mb-0">
+        <thead><tr>
+          <th style="width:36px"><input type="checkbox" id="chk-all" onchange="toggleAll(this)" /></th>
+          <th>#</th><th>Nama</th><th>Tipe</th><th>Kader</th><th>Lokasi</th><th>Status</th><th>Tgl Daftar</th><th></th>
+        </tr></thead>
+        <tbody id="pt-body"></tbody>
+      </table>
+    </div>
+    <div class="d-flex justify-content-between align-items-center mt-2">
+      <small class="text-muted" id="pt-count"></small>
+      <div id="pt-pagination" class="d-flex gap-1"></div>
+    </div>
+  </div>
+
+  <!-- Kaders -->
+  <div id="section-kaders" class="section">
+    <div class="action-bar">
+      <input type="text" id="kd-search" class="form-control form-control-sm" style="width:220px" placeholder="Cari nama kader..." oninput="filterKaders()" />
+    </div>
+    <div class="table-wrap">
+      <table class="table table-hover align-middle mb-0">
+        <thead><tr>
+          <th>#</th><th>Nama</th><th>No HP</th><th>Desa</th><th>Kecamatan</th><th>Kabupaten</th><th>Jml Pasien</th><th>Tgl Daftar</th><th></th>
+        </tr></thead>
+        <tbody id="kd-body"></tbody>
+      </table>
+    </div>
+    <small class="text-muted mt-2 d-block" id="kd-count"></small>
+  </div>
+
+  <!-- Export -->
+  <div id="section-export" class="section">
+    <div class="row g-3">
+      <div class="col-md-5">
+        <div class="stat-card">
+          <h5 class="fw-bold">📄 Data Pasien</h5>
+          <p class="text-muted" style="font-size:0.85rem">Satu baris per pasien. Termasuk info kader, jumlah skrining, dan status terakhir.</p>
+          <button class="btn text-white w-100" style="background:var(--primary)" onclick="exportFile('patients')">⬇ Download pasien.csv</button>
+        </div>
+      </div>
+      <div class="col-md-5">
+        <div class="stat-card">
+          <h5 class="fw-bold">📋 Data Skrining</h5>
+          <p class="text-muted" style="font-size:0.85rem">Satu baris per kunjungan skrining. Termasuk semua ukuran (MUAC, WAZ, HAZ, tekanan darah, dll).</p>
+          <button class="btn text-white w-100" style="background:var(--primary)" onclick="exportFile('screenings')">⬇ Download skrining.csv</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Kader Modal -->
+<div class="modal fade" id="kaderModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Edit Kader</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="edit-kader-id" />
+        <div class="mb-2"><label class="form-label">Nama</label><input class="form-control" id="edit-kader-name" /></div>
+        <div class="mb-2"><label class="form-label">Desa</label><input class="form-control" id="edit-kader-village" /></div>
+        <div class="mb-2"><label class="form-label">Kecamatan</label><input class="form-control" id="edit-kader-district" /></div>
+        <div class="mb-2"><label class="form-label">Kabupaten</label><input class="form-control" id="edit-kader-kabupaten" /></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+        <button class="btn text-white" style="background:var(--primary)" onclick="saveKader()">Simpan</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// ── Auth ──────────────────────────────────────────────────────────────
+let TOKEN = localStorage.getItem('admin_token') || '';
+let kaderModal;
+
+document.addEventListener('DOMContentLoaded', () => {
+  kaderModal = new bootstrap.Modal(document.getElementById('kaderModal'));
+  if (TOKEN) {
+    hidLogin();
+    loadAll();
+  }
+});
+
+async function doLogin() {
+  const pw = document.getElementById('inp-pw').value;
+  try {
+    const res = await fetch('/api/admin/auth', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({password: pw})
+    });
+    if (!res.ok) { document.getElementById('login-err').style.display = ''; return; }
+    const data = await res.json();
+    TOKEN = data.token;
+    localStorage.setItem('admin_token', TOKEN);
+    hidLogin();
+    loadAll();
+  } catch(e) { document.getElementById('login-err').style.display = ''; }
+}
+
+function hidLogin() { document.getElementById('login-screen').style.display = 'none'; }
+
+function doLogout() {
+  localStorage.removeItem('admin_token');
+  location.reload();
+}
+
+function ah() { return {'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json'}; }
+
+// ── Navigation ────────────────────────────────────────────────────────
+function showSection(name) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.sidebar .nav-link').forEach(l => l.classList.remove('active'));
+  document.getElementById('section-' + name).classList.add('active');
+  event.currentTarget.classList.add('active');
+  document.getElementById('topbar-title').textContent =
+    {overview:'Overview', patients:'Pasien', kaders:'Kader', export:'Export Data'}[name];
+  if (name === 'patients') loadPatients(1);
+  if (name === 'kaders') loadKaders();
+}
+
+// ── Load all ──────────────────────────────────────────────────────────
+function loadAll() { loadStats(); loadOverview(); }
+
+async function loadStats() {
+  try {
+    const res = await fetch('/api/stats', {headers: ah()});
+    const s = await res.json();
+    document.getElementById('s-patients').textContent = s.total_patients ?? '—';
+    document.getElementById('s-kaders').textContent = s.total_chws ?? '—';
+    document.getElementById('s-referred').textContent = s.referred_count ?? '—';
+    document.getElementById('s-week').textContent = (s.screenings_this_week_pregnant ?? 0) + (s.screenings_this_week_cu2 ?? 0);
+  } catch(e) {}
+}
+
+async function loadOverview() {
+  try {
+    const res = await fetch('/api/patients?per_page=6', {headers: ah()});
+    const data = await res.json();
+    document.getElementById('overview-recent').innerHTML = data.patients.map(p =>
+      `<tr><td>${esc(p.name)}</td><td>${p.patient_type === 'pregnant' ? '🤰' : '👶'}</td><td>${badge(p.screening.overall_status)}</td></tr>`
+    ).join('') || '<tr><td colspan="3" class="text-muted text-center">Belum ada data</td></tr>';
+  } catch(e) {}
+  try {
+    const res2 = await fetch('/api/admin/kaders', {headers: ah()});
+    const kaders = await res2.json();
+    document.getElementById('overview-kaders').innerHTML = kaders.slice(0,6).map(k =>
+      `<tr><td>${esc(k.name)}</td><td class="text-muted">${esc(k.kabupaten||k.district||'—')}</td><td><span class="badge bg-secondary">${k.patient_count} pasien</span></td></tr>`
+    ).join('') || '<tr><td colspan="3" class="text-muted text-center">Belum ada kader</td></tr>';
+  } catch(e) {}
+}
+
+// ── Patients ──────────────────────────────────────────────────────────
+let ptPage = 1;
+let selected = new Set();
+
+async function loadPatients(page = 1) {
+  ptPage = page;
+  clearSelection();
+  const search = document.getElementById('pt-search').value;
+  const type = document.getElementById('pt-type').value;
+  const status = document.getElementById('pt-status').value;
+  let url = `/api/patients?page=${page}&per_page=25`;
+  if (search) url += `&search=${encodeURIComponent(search)}`;
+  if (type) url += `&patient_type=${type}`;
+  if (status) url += `&status=${status}`;
+  try {
+    const res = await fetch(url, {headers: ah()});
+    const data = await res.json();
+    const tbody = document.getElementById('pt-body');
+    tbody.innerHTML = data.patients.map((p, i) => {
+      const loc = [p.chw.village, p.chw.district, p.chw.kabupaten].filter(Boolean).join(', ');
+      return `<tr class="clickable">
+        <td><input type="checkbox" class="pt-chk" value="${p.id}" onchange="onCheck(this)" onclick="event.stopPropagation()" /></td>
+        <td class="text-muted">${(page-1)*25+i+1}</td>
+        <td onclick="openPatient(${p.id})"><strong>${esc(p.name)}</strong></td>
+        <td onclick="openPatient(${p.id})">${p.patient_type === 'pregnant' ? '🤰 Ibu Hamil' : '👶 Anak &lt;2'}</td>
+        <td onclick="openPatient(${p.id})">${esc(p.chw.name)}</td>
+        <td onclick="openPatient(${p.id})" class="text-muted" style="font-size:0.8rem">${esc(loc)}</td>
+        <td onclick="openPatient(${p.id})">${badge(p.screening.overall_status)}</td>
+        <td onclick="openPatient(${p.id})" class="text-muted">${fmtDate(p.created_at)}</td>
+        <td><button class="btn btn-sm btn-outline-danger py-0" onclick="deletePt(event,${p.id})">🗑️</button></td>
+      </tr>`;
+    }).join('') || `<tr><td colspan="9" class="text-center text-muted py-4">Tidak ada data.</td></tr>`;
+    document.getElementById('pt-count').textContent = `${data.patients.length} dari ${data.total} pasien`;
+    renderPagination(data.total, page, 25, 'pt-pagination', loadPatients);
+  } catch(e) { console.error(e); }
+}
+
+function openPatient(id) {
+  window.open(`/hasil/${id}`, '_blank');
+}
+
+async function deletePt(e, id) {
+  e.stopPropagation();
+  if (!confirm('Hapus pasien ini beserta semua skrinningnya?')) return;
+  await fetch(`/api/patient/${id}`, {method:'DELETE', headers: ah()});
+  loadPatients(ptPage);
+  loadStats();
+}
+
+function onCheck(cb) {
+  if (cb.checked) selected.add(Number(cb.value));
+  else selected.delete(Number(cb.value));
+  updateBulkBar();
+}
+
+function toggleAll(masterCb) {
+  document.querySelectorAll('.pt-chk').forEach(cb => {
+    cb.checked = masterCb.checked;
+    if (masterCb.checked) selected.add(Number(cb.value));
+    else selected.delete(Number(cb.value));
+  });
+  updateBulkBar();
+}
+
+function updateBulkBar() {
+  const bar = document.getElementById('bulk-bar');
+  if (selected.size > 0) {
+    bar.classList.add('show');
+    document.getElementById('bulk-count').textContent = `${selected.size} dipilih`;
+  } else {
+    bar.classList.remove('show');
+  }
+}
+
+function clearSelection() {
+  selected.clear();
+  document.querySelectorAll('.pt-chk').forEach(cb => cb.checked = false);
+  const master = document.getElementById('chk-all');
+  if (master) master.checked = false;
+  updateBulkBar();
+}
+
+async function bulkDelete() {
+  if (!confirm(`Hapus ${selected.size} pasien? Tindakan ini tidak dapat dibatalkan.`)) return;
+  await fetch('/api/admin/patients/bulk', {
+    method: 'DELETE', headers: ah(),
+    body: JSON.stringify({ids: [...selected]})
+  });
+  clearSelection();
+  loadPatients(ptPage);
+  loadStats();
+}
+
+// ── Kaders ────────────────────────────────────────────────────────────
+let _allKaders = [];
+
+async function loadKaders() {
+  try {
+    const res = await fetch('/api/admin/kaders', {headers: ah()});
+    _allKaders = await res.json();
+    renderKaders(_allKaders);
+  } catch(e) { console.error(e); }
+}
+
+function filterKaders() {
+  const q = document.getElementById('kd-search').value.toLowerCase();
+  renderKaders(_allKaders.filter(k => k.name.toLowerCase().includes(q) || (k.kabupaten||'').toLowerCase().includes(q)));
+}
+
+function renderKaders(list) {
+  document.getElementById('kd-body').innerHTML = list.map((k, i) => `
+    <tr>
+      <td class="text-muted">${i+1}</td>
+      <td><strong>${esc(k.name)}</strong></td>
+      <td class="text-muted" style="font-size:0.82rem">${esc(k.phone)}</td>
+      <td>${esc(k.village||'—')}</td>
+      <td>${esc(k.district||'—')}</td>
+      <td>${esc(k.kabupaten||'—')}</td>
+      <td><span class="badge bg-secondary">${k.patient_count}</span></td>
+      <td class="text-muted">${fmtDate(k.created_at)}</td>
+      <td class="d-flex gap-1">
+        <button class="btn btn-sm btn-outline-primary py-0" onclick="openEditKader(${k.id})">✏️</button>
+        <button class="btn btn-sm btn-outline-danger py-0" onclick="deleteKader(${k.id})">🗑️</button>
+      </td>
+    </tr>`).join('') || '<tr><td colspan="9" class="text-center text-muted py-4">Belum ada kader.</td></tr>';
+  document.getElementById('kd-count').textContent = `${list.length} kader`;
+}
+
+function openEditKader(id) {
+  const k = _allKaders.find(x => x.id === id);
+  if (!k) return;
+  document.getElementById('edit-kader-id').value = k.id;
+  document.getElementById('edit-kader-name').value = k.name;
+  document.getElementById('edit-kader-village').value = k.village || '';
+  document.getElementById('edit-kader-district').value = k.district || '';
+  document.getElementById('edit-kader-kabupaten').value = k.kabupaten || '';
+  kaderModal.show();
+}
+
+async function saveKader() {
+  const id = document.getElementById('edit-kader-id').value;
+  await fetch(`/api/admin/kader/${id}`, {
+    method: 'PATCH', headers: ah(),
+    body: JSON.stringify({
+      name: document.getElementById('edit-kader-name').value,
+      village: document.getElementById('edit-kader-village').value,
+      district: document.getElementById('edit-kader-district').value,
+      kabupaten: document.getElementById('edit-kader-kabupaten').value,
+    })
+  });
+  kaderModal.hide();
+  loadKaders();
+}
+
+async function deleteKader(id) {
+  const k = _allKaders.find(x => x.id === id);
+  if (!confirm(`Hapus kader "${k?.name}" beserta semua pasien mereka (${k?.patient_count} pasien)?`)) return;
+  await fetch(`/api/admin/kader/${id}`, {method:'DELETE', headers: ah()});
+  loadKaders();
+  loadStats();
+}
+
+// ── Export ────────────────────────────────────────────────────────────
+function exportFile(type) {
+  const url = `/api/admin/export/${type}`;
+  const a = document.createElement('a');
+  a.href = url;
+  a.setAttribute('download', '');
+  // Pass token via URL param for file downloads (can't set headers on <a>)
+  a.href = url + '?token=' + TOKEN;
+  a.click();
+}
+
+// ── Pagination ────────────────────────────────────────────────────────
+function renderPagination(total, page, perPage, containerId, fn) {
+  const pages = Math.ceil(total / perPage);
+  if (pages <= 1) { document.getElementById(containerId).innerHTML = ''; return; }
+  let html = '';
+  for (let p = 1; p <= pages; p++) {
+    html += `<button class="btn btn-sm ${p===page ? 'text-white' : 'btn-outline-secondary'}"
+      style="${p===page ? 'background:var(--primary)' : ''}" onclick="${fn.name}(${p})">${p}</button>`;
+  }
+  document.getElementById(containerId).innerHTML = html;
+}
+
+// ── Utilities ─────────────────────────────────────────────────────────
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function fmtDate(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('id-ID', {day:'numeric', month:'short', year:'numeric'});
+}
+function badge(status) {
+  const map = {normal:'success', at_risk:'warning', referred:'danger'};
+  const label = {normal:'Normal', at_risk:'Berisiko', referred:'Rujukan', '':'—'};
+  const cls = map[status] || 'secondary';
+  return `<span class="badge bg-${cls}">${label[status] || status || '—'}</span>`;
+}
+</script>
+</body>
+</html>

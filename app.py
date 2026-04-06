@@ -22,11 +22,14 @@ Routes:
   POST /api/patient/{id}/qa — Claude Q&A
 """
 import os
+import csv
+import hashlib
+import io
 from datetime import datetime, timedelta
 from typing import Optional
 
 from fastapi import FastAPI, Request, Depends, HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
@@ -687,3 +690,150 @@ async def delete_screening(patient_id: int, screening_type: str, screening_id: i
     db.delete(row)
     db.commit()
     return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+# Admin panel
+# ---------------------------------------------------------------------------
+
+def _admin_token() -> str:
+    """Derive a session token from ADMIN_PASSWORD env var."""
+    pw = os.getenv("ADMIN_PASSWORD", "posyandu-admin-2024")
+    return hashlib.sha256(pw.encode()).hexdigest()
+
+def _check_admin(request: Request):
+    auth = request.headers.get("Authorization", "")
+    token = auth.removeprefix("Bearer ").strip()
+    if not token:
+        token = request.query_params.get("token", "")
+    if not token or token != _admin_token():
+        raise HTTPException(401, "Unauthorized")
+
+@app.get("/admin", response_class=HTMLResponse)
+async def admin_panel(request: Request):
+    return templates.TemplateResponse("admin.html", {"request": request})
+
+@app.post("/api/admin/auth")
+async def admin_auth(request: Request):
+    body = await request.json()
+    pw = body.get("password", "")
+    if hashlib.sha256(pw.encode()).hexdigest() != _admin_token():
+        raise HTTPException(401, "Password salah")
+    return {"token": _admin_token()}
+
+@app.get("/api/admin/kaders")
+async def admin_kaders(request: Request, db: Session = Depends(get_db)):
+    _check_admin(request)
+    kaders = db.query(HealthWorker).order_by(HealthWorker.kabupaten, HealthWorker.district, HealthWorker.name).all()
+    result = []
+    for k in kaders:
+        count = db.query(func.count(Patient.id)).filter_by(chw_id=k.id).scalar()
+        result.append({
+            "id": k.id, "name": k.name, "phone": k.phone,
+            "village": k.village, "district": k.district, "kabupaten": k.kabupaten,
+            "patient_count": count, "created_at": k.created_at.isoformat() if k.created_at else None,
+        })
+    return result
+
+@app.patch("/api/admin/kader/{kader_id}")
+async def admin_patch_kader(kader_id: int, request: Request, db: Session = Depends(get_db)):
+    _check_admin(request)
+    body = await request.json()
+    kader = db.query(HealthWorker).filter_by(id=kader_id).first()
+    if not kader:
+        raise HTTPException(404, "Kader tidak ditemukan")
+    if "name" in body:
+        kader.name = body["name"].strip().title()
+    if "village" in body:
+        kader.village = body["village"].strip() or None
+    if "district" in body:
+        kader.district = body["district"].strip() or None
+    if "kabupaten" in body:
+        kader.kabupaten = body["kabupaten"].strip() or None
+    db.commit()
+    return {"ok": True}
+
+@app.delete("/api/admin/kader/{kader_id}")
+async def admin_delete_kader(kader_id: int, request: Request, db: Session = Depends(get_db)):
+    _check_admin(request)
+    kader = db.query(HealthWorker).filter_by(id=kader_id).first()
+    if not kader:
+        raise HTTPException(404, "Kader tidak ditemukan")
+    patient_ids = [p.id for p in db.query(Patient).filter_by(chw_id=kader_id).all()]
+    for pid in patient_ids:
+        db.query(PregnantScreening).filter_by(patient_id=pid).delete()
+        db.query(ChildScreening).filter_by(patient_id=pid).delete()
+    db.query(Patient).filter_by(chw_id=kader_id).delete()
+    db.delete(kader)
+    db.commit()
+    return {"ok": True}
+
+@app.delete("/api/admin/patients/bulk")
+async def admin_bulk_delete(request: Request, db: Session = Depends(get_db)):
+    _check_admin(request)
+    body = await request.json()
+    ids = body.get("ids", [])
+    for pid in ids:
+        db.query(PregnantScreening).filter_by(patient_id=pid).delete()
+        db.query(ChildScreening).filter_by(patient_id=pid).delete()
+        db.query(Patient).filter_by(id=pid).delete()
+    db.commit()
+    return {"ok": True, "deleted": len(ids)}
+
+@app.get("/api/admin/export/patients")
+async def admin_export_patients(request: Request, db: Session = Depends(get_db)):
+    _check_admin(request)
+    patients = db.query(Patient).order_by(Patient.id).all()
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["ID","Nama Pasien","Tipe","Kader","HP Kader","Desa","Kecamatan","Kabupaten",
+                     "Jml Skrining","Tgl Daftar","Status Terakhir","Tgl Skrining Terakhir"])
+    for p in patients:
+        chw = p.chw
+        screenings = list(p.pregnant_screenings) + list(p.child_screenings)
+        screenings.sort(key=lambda s: s.screened_at or datetime.min)
+        last = screenings[-1] if screenings else None
+        writer.writerow([
+            p.id, p.name, "Ibu Hamil" if p.patient_type == "pregnant" else "Anak < 2 Thn",
+            chw.name if chw else "", chw.phone if chw else "",
+            chw.village if chw else "", chw.district if chw else "", chw.kabupaten if chw else "",
+            len(screenings),
+            p.created_at.strftime("%Y-%m-%d") if p.created_at else "",
+            getattr(last, "overall_status", "") if last else "",
+            last.screened_at.strftime("%Y-%m-%d") if last and last.screened_at else "",
+        ])
+    output.seek(0)
+    filename = f"pasien_{datetime.now().strftime('%Y%m%d')}.csv"
+    return StreamingResponse(iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"})
+
+@app.get("/api/admin/export/screenings")
+async def admin_export_screenings(request: Request, db: Session = Depends(get_db)):
+    _check_admin(request)
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Tipe","Pasien ID","Nama Pasien","Kader","Kabupaten",
+                     "Tgl Skrining","Status","MUAC cm","Anemia","TD Sistol","TD Diastol",
+                     "Usia Ibu","Usia Hamil (mgg)","BB kg","TB cm","WAZ","HAZ",
+                     "Status BB","Status TB","Perlu Rujuk"])
+    for s in db.query(PregnantScreening).order_by(PregnantScreening.screened_at).all():
+        p = s.patient; chw = p.chw if p else None
+        writer.writerow(["pregnant", p.id if p else "", p.name if p else "",
+            chw.name if chw else "", chw.kabupaten if chw else "",
+            s.screened_at.strftime("%Y-%m-%d") if s.screened_at else "",
+            s.overall_status, s.muac_cm, s.anemia_status, s.systolic_bp, s.diastolic_bp,
+            s.mother_age, s.weeks_pregnant, "", "", "", "", "", "", s.needs_referral])
+    for s in db.query(ChildScreening).order_by(ChildScreening.screened_at).all():
+        p = s.patient; chw = p.chw if p else None
+        writer.writerow(["child", p.id if p else "", p.name if p else "",
+            chw.name if chw else "", chw.kabupaten if chw else "",
+            s.screened_at.strftime("%Y-%m-%d") if s.screened_at else "",
+            s.overall_status, "", "", "", "",
+            "", "", s.weight_kg, s.height_cm, s.waz, s.haz,
+            s.weight_status, s.height_status, s.needs_referral])
+    output.seek(0)
+    filename = f"skrining_{datetime.now().strftime('%Y%m%d')}.csv"
+    return StreamingResponse(iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"})
